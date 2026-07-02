@@ -31,3 +31,16 @@ export async function endTrip(req: Request, res: Response, next: NextFunction): 
         next(err);
     }
 }
+
+/**
+ * GET /api/v1/admin/trips
+ * Admin JWT required. Active + recently completed trips with passenger counts.
+ */
+export async function listTrips(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const trips = await tripsService.listTrips();
+        sendSuccess(res, trips, 'Trips retrieved');
+    } catch (err) {
+        next(err);
+    }
+}

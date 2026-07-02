@@ -40,11 +40,12 @@ CREATE INDEX idx_nfc_credentials_uid ON nfc_credentials(nfc_uid);
 -- VEHICLES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS vehicles (
-    vehicle_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    plate_number VARCHAR(20) UNIQUE NOT NULL,
-    vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('bus', 'cab', 'tricycle')),
-    capacity     INTEGER NOT NULL DEFAULT 0,
-    is_active    BOOLEAN NOT NULL DEFAULT true
+    vehicle_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plate_number       VARCHAR(20) UNIQUE NOT NULL,
+    vehicle_type       VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('bus', 'cab', 'tricycle')),
+    capacity           INTEGER NOT NULL DEFAULT 0,
+    is_active          BOOLEAN NOT NULL DEFAULT true,
+    assigned_driver_id UUID REFERENCES users(user_id) -- current driver assigned to this vehicle (FE-11), nullable
 );
 
 -- ============================================================

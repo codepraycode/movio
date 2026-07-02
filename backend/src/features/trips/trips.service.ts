@@ -2,6 +2,7 @@ import { DatabaseError } from 'pg';
 import * as tripsModel from './trips.model';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors';
 import type { Trip } from '../../types';
+import type { TripMonitorRow } from './trips.types';
 
 export async function startTrip(
     driverId: string,
@@ -38,4 +39,8 @@ export async function endTrip(tripId: string, driverId: string): Promise<Trip> {
     }
 
     return tripsModel.endTrip(tripId);
+}
+
+export async function listTrips(): Promise<TripMonitorRow[]> {
+    return tripsModel.listTripsWithPassengerCounts();
 }

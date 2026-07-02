@@ -57,6 +57,15 @@ async function apiGet<T>(path: string): Promise<T> {
     return body.data
 }
 
+async function apiMutate<T>(path: string, method: 'POST' | 'PATCH', body: unknown): Promise<T> {
+    const response = await apiFetch(path, { method, body: JSON.stringify(body) })
+    const responseBody = (await response.json()) as ApiSuccessBody<T> | ApiErrorBody
+    if (!response.ok || !responseBody.success) {
+        throw new Error(responseBody.message ?? 'Request failed')
+    }
+    return responseBody.data
+}
+
 export interface ActiveTrip {
     trip_id: string
     status: string
@@ -117,4 +126,89 @@ export interface RidershipRow {
 
 export function getRidershipReport(groupBy: RidershipGroupBy): Promise<RidershipRow[]> {
     return apiGet<RidershipRow[]>(`/admin/reports/ridership?groupBy=${groupBy}`)
+}
+
+export type VehicleType = 'bus' | 'cab' | 'tricycle'
+
+export interface Vehicle {
+    vehicle_id: string
+    plate_number: string
+    vehicle_type: VehicleType
+    capacity: number
+    is_active: boolean
+    assigned_driver_id: string | null
+    driver_first_name: string | null
+    driver_last_name: string | null
+}
+
+export function getVehicles(): Promise<Vehicle[]> {
+    return apiGet<Vehicle[]>('/admin/vehicles')
+}
+
+export function assignDriver(vehicleId: string, driverId: string | null): Promise<Vehicle> {
+    return apiMutate<Vehicle>(`/admin/vehicles/${vehicleId}/assign-driver`, 'PATCH', {
+        driver_id: driverId,
+    })
+}
+
+export interface DriverUser {
+    user_id: string
+    first_name: string
+    last_name: string
+    email: string
+    role: string
+}
+
+export function getDrivers(): Promise<DriverUser[]> {
+    return apiGet<DriverUser[]>('/admin/users?role=driver')
+}
+
+export interface RouteStop {
+    name: string
+    lat: number
+    lng: number
+}
+
+export interface RouteRecord {
+    route_id: string
+    route_name: string
+    stops: RouteStop[]
+    is_active: boolean
+}
+
+export function getRoutes(): Promise<RouteRecord[]> {
+    return apiGet<RouteRecord[]>('/admin/routes')
+}
+
+export function createRoute(routeName: string, stops: RouteStop[]): Promise<RouteRecord> {
+    return apiMutate<RouteRecord>('/admin/routes', 'POST', { route_name: routeName, stops })
+}
+
+export interface RoutePatch {
+    route_name?: string
+    stops?: RouteStop[]
+    is_active?: boolean
+}
+
+export function updateRoute(routeId: string, patch: RoutePatch): Promise<RouteRecord> {
+    return apiMutate<RouteRecord>(`/admin/routes/${routeId}`, 'PATCH', patch)
+}
+
+export type TripMonitorStatus = 'active' | 'completed' | 'cancelled'
+
+export interface TripMonitorRow {
+    trip_id: string
+    status: TripMonitorStatus
+    start_time: string
+    end_time: string | null
+    plate_number: string
+    vehicle_type: VehicleType
+    route_name: string | null
+    driver_first_name: string
+    driver_last_name: string
+    passenger_count: number
+}
+
+export function getTripsMonitor(): Promise<TripMonitorRow[]> {
+    return apiGet<TripMonitorRow[]>('/admin/trips')
 }

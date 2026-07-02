@@ -43,6 +43,7 @@ export interface Vehicle {
     vehicle_type: VehicleType;
     capacity: number;
     is_active: boolean;
+    assigned_driver_id: string | null;
 }
 
 export interface RouteStop {

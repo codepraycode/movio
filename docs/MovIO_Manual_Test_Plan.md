@@ -148,6 +148,44 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | REPORT-06 | — | GET `/admin/reports/ridership?groupBy=route` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
 | REPORT-07 | Student JWT | GET `/admin/reports/ridership?groupBy=route` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
 
+## 12. Route Management (`BE-?`/`FE-7`)
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| ROUTE-01 | Admin JWT | POST `/admin/routes` with `route_name` + 2 stops | 201, stops round-trip correctly as JSONB | `{"route_id":"c810d5fa...","stops":[{"lat":7.2999,"lng":5.135,"name":"South Gate"},{"lat":7.301,"lng":5.136,"name":"Library"}]}` | Pass |
+| ROUTE-02 | Admin JWT | POST `/admin/routes` with only 1 stop | 422, validation error | `{"message":"Validation failed","errors":[{"field":"stops","constraints":["stops must contain at least 2 stops"]}]}` | Pass |
+| ROUTE-03 | Admin JWT, routes exist | GET `/admin/routes` | 200, list includes both seeded and newly created routes | Returned 2 routes including the seeded `South Gate to West Gate` | Pass |
+| ROUTE-04 | Admin JWT, route from ROUTE-01 | PATCH `/admin/routes/:id` with new `route_name` + 3 stops | 200, name and stops updated | `{"route_name":"South Gate to Library (via Hostel)","stops":[...3 stops...]}` | Pass |
+| ROUTE-05 | Same route | PATCH `/admin/routes/:id` with only `{"is_active":false}` | 200, only `is_active` changes, `route_name`/`stops` unchanged | `is_active:false`, name/stops preserved from ROUTE-04 | Pass |
+| ROUTE-06 | Admin JWT | PATCH `/admin/routes/:id` for a non-existent route id | 404 | `{"message":"Route not found"}` | Pass |
+| ROUTE-07 | — | GET `/admin/routes` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| ROUTE-08 | Student JWT | GET `/admin/routes` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+
+## 13. Trip Monitoring (`FE-8`)
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| TRIPMON-01 | Admin JWT, active trip with no boarding events yet | GET `/admin/trips` | 200, that trip's `passenger_count` is 0 | `"passenger_count":0` | Pass |
+| TRIPMON-02 | Same trip, one boarding tap via `POST /boarding/authenticate` | GET `/admin/trips` again | `passenger_count` increases to 1, matches manual `SELECT COUNT(*) FROM boarding_events WHERE trip_id=...` | `"passenger_count":1`, manual count also `1` | Pass |
+| TRIPMON-03 | Trip ended via `POST /trips/:id/end` | GET `/admin/trips` | `status` flips from `active` to `completed`, `passenger_count` unchanged | `"status":"completed","passenger_count":1` | Pass |
+| TRIPMON-04 | — | GET `/admin/trips` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| TRIPMON-05 | Student JWT | GET `/admin/trips` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+
+## 14. Driver Assignment (`FE-11`)
+
+Requires the `assigned_driver_id` column on `vehicles` (see migration note below) - ASSIGN-01/02/07/08 don't touch that column (auth middleware runs first) and were verified without it; ASSIGN-03 through 06 need the migration applied and are marked pending until then.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| ASSIGN-01 | Admin JWT, at least one driver registered | GET `/admin/users?role=driver` | 200, only `role='driver'` users returned | `[{"first_name":"Dele","last_name":"Driver","role":"driver"}]` | Pass |
+| ASSIGN-02 | Admin JWT | GET `/admin/users?role=bogus` | 400 | `{"message":"Invalid role. Must be one of: student, driver, transport_personnel, admin"}` | Pass |
+| ASSIGN-03 | Admin JWT, migration applied | PATCH `/admin/vehicles/:id/assign-driver` with `{"driver_id":"<driver user_id>"}` | 200, `GET /admin/vehicles` now shows that driver assigned | — | Pending (needs migration) |
+| ASSIGN-04 | Same | PATCH `.../assign-driver` with a `driver_id` belonging to a non-driver user | 400 | — | Pending (needs migration) |
+| ASSIGN-05 | Same | PATCH `.../assign-driver` with `{"driver_id":null}` | 200, vehicle shows unassigned | — | Pending (needs migration) |
+| ASSIGN-06 | Same | PATCH `.../assign-driver` for a non-existent vehicle id | 404 | — | Pending (needs migration) |
+| ASSIGN-07 | — | GET `/admin/vehicles` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| ASSIGN-08 | Student JWT | PATCH `/admin/vehicles/:id/assign-driver` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+
 ---
 
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
@@ -164,6 +202,9 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | Complaints | 10 | | | |
 | Trip Lifecycle | 9 | | | |
 | Ridership Report | 7 | | | |
-| **Total** | **71** | | | |
+| Route Management | 8 | | | |
+| Trip Monitoring | 5 | | | |
+| Driver Assignment | 8 | | | |
+| **Total** | **92** | | | |
 
 SUS Score: ___ / 100 (n = ___)

@@ -7,8 +7,11 @@ import boardingRoutes from './features/boarding/boarding.routes';
 import trackingRoutes from './features/tracking/tracking.routes';
 import walletRoutes from './features/wallet/wallet.routes';
 import complaintsRoutes, { adminComplaintsRouter } from './features/complaints/complaints.routes';
-import tripsRoutes from './features/trips/trips.routes';
+import tripsRoutes, { adminTripsRouter } from './features/trips/trips.routes';
 import { adminReportsRouter } from './features/reports/reports.routes';
+import { adminVehiclesRouter } from './features/vehicles/vehicles.routes';
+import { adminUsersRouter } from './features/users/users.routes';
+import { adminRoutesRouter } from './features/routes/routes.routes';
 
 const app = express();
 
@@ -27,6 +30,10 @@ app.use('/api/v1/complaints', complaintsRoutes);
 app.use('/api/v1/admin/complaints', adminComplaintsRouter);
 app.use('/api/v1/trips', tripsRoutes);
 app.use('/api/v1/admin/reports', adminReportsRouter);
+app.use('/api/v1/admin/vehicles', adminVehiclesRouter);
+app.use('/api/v1/admin/users', adminUsersRouter);
+app.use('/api/v1/admin/routes', adminRoutesRouter);
+app.use('/api/v1/admin/trips', adminTripsRouter);
 
 app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Not found' });
