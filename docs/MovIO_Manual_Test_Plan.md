@@ -35,8 +35,12 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 
 | ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
 |---|---|---|---|---|---|
-| WALLET-01 | Student wallet at 0 | Manually insert a `topup_cash` credit_transaction + update balance via SQL (simulating Transport Personnel top-up, since `BE-7`/`BE-8` UI may not exist yet) | Balance increases correctly, transaction logged | | |
+| WALLET-01 | Student wallet at 0, transport_personnel JWT | POST `/wallet/topup-cash` with `{ user_id, amount: 50 }` | 200, balance increases by 50, `credit_transactions` row logged with `type='topup_cash'` | Balance 0 → 50, transaction row created (`ts-node-dev` + live Supabase, 2026-07-02) | Pass |
 | WALLET-02 | — | Query `credit_transactions` for a student | Every boarding deduction and top-up appears, amounts sum correctly to current balance | | |
+| WALLET-03 | Student JWT | POST `/wallet/topup-cash` as a student instead of transport_personnel | 403 Forbidden, no balance change | `{"success":false,"message":"Forbidden - insufficient role"}` | Pass |
+| WALLET-04 | — | POST `/wallet/topup-cash` with no Authorization header | 401 | `{"success":false,"message":"Missing or malformed Authorization header"}` | Pass |
+| WALLET-05 | transport_personnel JWT | POST `/wallet/topup-cash` with a `user_id` that has no wallet | 404 | `{"success":false,"message":"Wallet not found for this user"}` | Pass |
+| WALLET-06 | transport_personnel JWT | POST `/wallet/topup-cash` with `amount: -5` | 422, validation error on `amount` | `{"success":false,"message":"Validation failed","errors":[{"field":"amount","constraints":["amount must be a positive number"]}]}` | Pass |
 
 ## 4. GPS Tracking (`BE-5`, `HW-3`)
 
