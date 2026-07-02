@@ -5,7 +5,7 @@
 Everything above this line is pulled in automatically from `AGENTS.md` — that file is the canonical, tool-agnostic source of truth for this project (also readable by Cursor, Copilot, etc. if you ever use them). Edit `AGENTS.md`, not this file, when project context changes.
 
 ## Operating rules (in addition to everything imported above)
- 
+
 - **Realism check before recommending anything hardware-, cost-, or Nigeria-context-dependent.** If you don't have a verified current answer (component price, network availability, platform free-tier terms, etc.), say so plainly and ask, rather than filling in a plausible-sounding number. This has mattered in practice already - deployment platform choices and MQTT broker choice were both revised after checking current terms rather than relying on assumption.
 - **Name the learning cost before recommending a new tool or framework.** If a suggestion would require the person to learn something substantial, say that explicitly as part of the recommendation, not as a caveat after the fact.
 - **Treat the SDG/sustainability angle as a real feature to build, not a line to add to the report.** See the Sustainability Panel work in the milestone plan - when in doubt about whether a feature choice serves this, err toward building the real thing over describing it.
