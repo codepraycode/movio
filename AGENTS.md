@@ -1,14 +1,27 @@
 # AGENTS.md
 
-Canonical, tool-agnostic project instructions for any AI coding agent working in this repo (Claude Code, Cursor, Copilot, etc.). This is the source of truth — `CLAUDE.md` just imports this file.
+Single source of truth for anyone or anything (human or AI agent) picking up this project. If you're an AI coding agent reading this: everything in this file is load-bearing, not background color — follow the "Working principles" section as operating rules, not just information.
 
 ## Project
-MovIO (Mobility Optimization Via Intelligent Operations) — final year software engineering project, FUTA. Smart campus transportation system: NFC boarding authentication (via the TapTrace device), real-time GPS shuttle tracking, Transit Credit wallet, admin analytics dashboard. Defence expected this month (July 2026), exact date unconfirmed — prioritize a working, honestly-scoped demo over an ambitious but broken one.
+**MovIO** (Mobility Optimization Via Intelligent Operations) — a smart campus transportation management system for the Federal University of Technology, Akure (FUTA), Nigeria. Final year software engineering project. Combines NFC-based boarding authentication (via the **TapTrace** device), real-time GPS shuttle tracking, a prepaid Transit Credit wallet, and a centralized analytics dashboard — including a real sustainability/SDG feature, not just a claim.
 
-**The academic report (`docs/` — Chapters 1–3 already written) is the source of truth for requirements and architecture.** Check it before making an architectural decision. If code needs to diverge from what the report says (already happened once: Raspberry Pi → ESP32), update the report — don't let them drift apart. The person you're working with defends this report to human examiners.
+**The academic report (Chapters 1-3 already written, in `docs/` or attached to the project) is the source of truth for requirements and architecture.** Every code decision should be checked against it. If code needs to diverge from what's written (this has already happened several times — see "Key decisions" below), **update the report to match** — don't let them drift apart. A real person defends this report to human examiners; internal inconsistency between report and system is a defence risk, not a cosmetic issue.
 
 ## Who you're working with
-A young software engineer, FUTA Software Engineering student, based in Nigeria. Comfortable with Vite/React and general JS. **New to Flutter and to embedded firmware (ESP32/C++)** — budget extra explanation and smaller steps specifically in those two areas. Wants to actually learn the hardware/firmware side, not have it done invisibly — narrate reasoning there, don't just hand over finished code. Working under real time pressure toward a defence date.
+A young, ambitious software engineering student at FUTA, also a practicing software engineer in Nigeria. Comfortable with Vite/React/general JS/TS. Newer to Flutter and embedded firmware (ESP32/C++) specifically — these two areas need more explanation, smaller steps, and reasoning narrated rather than handed over as finished code, since the person wants to actually learn them, not just receive output. Working under real time pressure toward a defence date this month (still unconfirmed exact date as of this writing).
+
+## Working principles (apply these as rules, not suggestions)
+1. **Realism over assumption.** Every recommendation should be checked against FUTA/Nigeria's actual conditions where it matters (component availability and pricing, network reliability, power stability, local supplier realities) — don't default to generic/US-centric assumptions. When something is genuinely unknown, say so and ask, rather than filling the gap with a plausible-sounding guess.
+2. **Technology choices must flag real learning cost.** If a technology choice would require the person to learn something substantial and new, say so explicitly *before* it's adopted, not after. This has already shaped real decisions — e.g., Express was kept over Fastify/NestJS specifically because switching frameworks under deadline pressure wasn't worth the added learning curve; ESP32 was chosen partly *because* it's better embedded-firmware learning value, and that was named explicitly as a reason.
+3. **This project has genuine global relevance, not just local scope.** It's explicitly aligned with UN SDG 4 (Quality Education), SDG 9 (Industry, Innovation and Infrastructure), and SDG 11 (Sustainable Cities and Communities) — see Ch.1 §1.1. This isn't decorative: the dashboard's Sustainability Panel (see Milestone 5 in the milestone plan) is a real, working feature demonstrating this, not just supporting prose. Any new feature work should ask whether it reinforces or undermines this framing.
+4. **Academic and formal consistency matters as much as working code.** Don't assume journal targets, formatting requirements, or department expectations — these were explicitly researched, not guessed:
+   - Primary post-defence journal target: **FUTAJEET** (FUTA Journal of Engineering and Engineering Technology) — open-access, published by FUTA's own School of Engineering and Engineering Technology, biannual (April/November). Home-court advantage; confirm with supervisor whether they'd co-sponsor submission.
+   - Secondary target once real evaluation data exists: **Nigerian Journal of Technology (NIJOTECH)** — Scopus-indexed, University of Nigeria, ~$185 APC.
+   - Avoid any "project-mill" service promising bundled project-building + paper-writing + publishing — these read as predatory and undermine originality claims.
+   - Any Word document (`.docx`) deliverable produced for this project should use minimal formatting — clean, easily editable structure, not heavy styling — except where a document's whole purpose is formal/special presentation.
+5. **Faithful-partner standard.** Don't fill gaps in the person's knowledge or the project's status with invented specifics (prices, stakeholder responses, defence dates, fuel-consumption figures, etc.). Where a real answer is needed and unknown, say exactly who to ask or what to check, and treat that as an open item until a real answer comes back — see "Open items" below.
+6. **Draw from the actual chapter documents**, not from a generic idea of what a "smart campus transport system" project looks like. Chapters 1-3 already contain specific, real field data (104-student survey, driver interview, SUG meeting) — decisions should stay consistent with what's already been established and evidenced there.
+
 
 ## Repo structure (monorepo)
 ```
@@ -21,6 +34,31 @@ movio/
 ```
 One repo, parallel-track development: hardware (`firmware/`) and software (`backend/`, `dashboard/`, `mobile/`) progress independently and merge at integration testing, not sequentially.
 
+## Confirmed technical decisions (and why)
+| Decision | Chosen | Why |
+|---|---|---|
+| Repo structure | Monorepo (`backend/`, `dashboard/`, `mobile/`, `firmware/`, `docs/`) | One clone for examiners/supervisor; deployment platforms (Vercel, Render) support subfolder root directories cleanly, so the earlier concern about monorepo-vs-deployment friction doesn't hold |
+| TapTrace hardware | ESP32 (not Raspberry Pi, as Ch.3 originally specified) | Far cheaper and more available in Nigeria; better power/boot characteristics for a vehicle-mounted device; genuinely better embedded-firmware learning value |
+| TapTrace <-> backend protocol | Real MQTT (not a simplified HTTPS shortcut that was briefly proposed and explicitly rejected) | Matches Ch.3's original design; person explicitly chose to build the real thing over the simpler alternative |
+| MQTT broker | **HiveMQ Cloud** (free "Serverless" tier - confirmed: 100 connections, 10GB/month, TLS required) — not self-hosted Mosquitto as Ch.3 originally specified | Render's free tier serves HTTP, not raw TCP ports, so self-hosting a broker doesn't fit the free deployment stack; a managed broker needs no maintenance and is still genuinely free at this project's scale |
+| Backend framework | Express (kept, not switched to Fastify/NestJS) | Already working and tested; switching frameworks under deadline pressure to rebuild something that already works isn't worth it - explicitly flagged per principle #2 |
+| Backend language | **TypeScript** (migrating from JS) | Person's explicit choice; stronger for a portfolio-worthy repo |
+| Backend package manager | **Yarn** (not npm) | Person's explicit choice, applies to `backend/` and `dashboard/` only - Flutter uses its own `pub` tooling, no yarn equivalent exists there |
+| Database | **Supabase** (free Postgres) | Person already has an account (used for the survey app); free tier *pauses* on inactivity rather than deleting data, unlike Render's free Postgres which hard-deletes after 30 days |
+| Backend hosting | **Render** free Web Service | Only free option supporting a persistent Node process with WebSocket - accepted tradeoff: 15-min idle spin-down, ~30-60s cold start. For the actual defence demo, run backend locally instead, to remove this risk on the day it matters most |
+| Dashboard hosting | **Vercel** free | Same platform already used for the survey app |
+| Mobile | Flutter/Dart, Android-only (matches Ch.1 §1.5 scope) | No cloud deployment needed - APK built locally, sideloaded to a physical test device |
+| Mobile dev environment | Physical Android phone (not emulator), HP EliteBook x360 1040 G5, 8GB RAM, Linux | Confirmed directly with the person - avoids emulator resource overhead on an 8GB machine |
+| Project management | Linear | Milestone plan and issue descriptions are written to paste directly into Linear issues |
+
+## Open items — do not assume answers to these
+- **Defence date**: still unconfirmed as of this writing ("this month," no specific date). This is the single number that reshapes the whole timeline.
+- **TapTrace parts**: as of the last confirmed check, not yet ordered. This is the actual critical-path bottleneck on all hardware-dependent work.
+- **Sustainability panel fuel-consumption figure**: needs a real number from FUTA's Transport Unit or the driver contact already established in Ch.3's fieldwork. Ships as an admin-adjustable estimate, clearly labeled, until this arrives.
+- **2G network availability** (only relevant if pursuing the optional SIM800L cellular stretch goal for TapTrace) — needs checking with the person's actual network provider before purchasing that module.
+- **Supervisor confirmations needed**: exact defence date; written confirmation that a desk-level NFC/GPS proof-of-concept (not a full in-vehicle pilot) is acceptable; whether FUTAJEET submission is a department expectation; any required report template/style.
+
+
 ## Tech stack — don't silently swap these without discussion
 - **Backend:** Node.js + Express, raw `pg` (no ORM — deliberate, keeps queries visible/explainable for defence), PostgreSQL hosted on **Supabase** (free tier — chosen over Render's free Postgres because it pauses rather than hard-deletes after inactivity), Socket.io, JWT + `bcryptjs` (not `bcrypt` — native bindings failed to build in a sandboxed test environment; pure-JS avoids that class of problem entirely)
 - **Dashboard:** React + Vite + Tailwind, Leaflet + OpenStreetMap. Deploys to **Vercel** (free), root directory `dashboard`
@@ -31,10 +69,11 @@ One repo, parallel-track development: hardware (`firmware/`) and software (`back
 - **Project management:** Linear. Task codes (`BE-3`, `HW-2`, etc.) referenced in `docs/MovIO_Milestone_Plan.md` should match Linear issue titles — keep them traceable both directions.
 
 ## Setup / commands
-- Backend: `cd backend && npm install && cp .env.example .env` (fill in `DATABASE_URL` from Supabase + `JWT_SECRET`), then `npm run dev`. Health check: `GET /health`.
-- Backend DB: run `backend/db/schema.sql` against the Supabase Postgres instance before first use.
-- Dashboard: `cd dashboard && npm install && npm run dev`.
-- Simulate TapTrace hardware before it physically exists: `node backend/scripts/simulate-taptrace.js <trip_id> <nfc_uid>`.
+- Backend: `cd backend && yarn install && cp .env.example .env` (fill in `DATABASE_URL` from Supabase + `JWT_SECRET`), then `yarn dev` (runs on `ts-node-dev`, auto-restarts on save). Health check: `GET /health`.
+- Backend DB: schema/migrations are run directly against Supabase (SQL editor or `psql`) — `backend/db/schema.sql` is the source of truth, kept in sync by hand, not by an in-repo migration runner.
+- Dashboard: `cd dashboard && yarn install && yarn dev`.
+- Mobile: `cd mobile && flutter pub get && flutter run` (needs a connected Android device — see mobile dev environment note above).
+- Simulate TapTrace hardware before it physically exists: `yarn simulate <trip_id> [nfc_uid]` from `backend/` (runs `scripts/simulate-taptrace.ts` via `ts-node`).
 
 ## Testing
 Manual testing is the primary strategy here (student-led final year project, tight timeline) — see `docs/MovIO_Manual_Test_Plan.md` for the full test case table, organized by feature area and mapped to the report's functional/non-functional requirements. When you add a feature, add or update the relevant test cases in that file rather than assuming coverage. If you write any automated tests, keep them simple (basic endpoint/unit tests) — don't introduce a heavy test framework under this timeline without discussion.
@@ -52,14 +91,16 @@ Manual testing is the primary strategy here (student-led final year project, tig
 - Don't add heavy frameworks/tooling not already in the stack above without discussing first
 - Don't skip `docs/MovIO_Manual_Test_Plan.md` when a feature is "done" — done means tested, not just implemented
 
-## Where things stand
-Update this section at the end of each session so the next one (in any tool) doesn't have to reconstruct state:
-- [x] Backend scaffold + Postgres schema — auth, boarding, tracking endpoints exist; admin/report/complaint endpoints not yet (`BE-7`, `BE-8`)
-- [ ] Dashboard
-- [ ] Flutter mobile app
-- [ ] TapTrace firmware — blocked on parts arriving
-- [ ] Manual testing (`docs/MovIO_Manual_Test_Plan.md`)
-- [ ] Deployment (Render + Vercel)
-- [ ] Chapter 4 writeup
+## Where things stand (keep this current - update at the end of each work session)
+- [x] Backend core logic written and sandbox-tested: auth, boarding (with wallet deduction transaction), tracking, MQTT client with graceful degradation when unconfigured
+- [ ] Backend TypeScript migration
+- [ ] Backend remaining endpoints: admin ridership report, complaints, trip lifecycle, cash top-up
+- [ ] Dashboard (not yet scaffolded)
+- [ ] Mobile app (not yet scaffolded, environment confirmed ready)
+- [ ] TapTrace firmware (blocked on parts ordering)
+- [ ] MQTT broker (HiveMQ Cloud account not yet confirmed created)
+- [ ] Manual testing (test plan written, execution not started)
+- [ ] Deployment (not started)
+- [ ] Chapter 4 writeup (not started)
 
 Full task-level detail: `docs/MovIO_Milestone_Plan.md`, mirrored in Linear.
