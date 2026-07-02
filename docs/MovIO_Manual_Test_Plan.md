@@ -110,6 +110,18 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | COMPLAINT-09 | Admin JWT | PATCH `/admin/complaints/:id` with a non-existent id | 404 | `{"message":"Complaint not found"}` | Pass |
 | COMPLAINT-10 | Admin JWT | PATCH `/admin/complaints/:id` with an invalid `status` value | 422, validation error | `{"field":"status","constraints":[...]}` | Pass |
 
+## 10. Ridership Report (`BE-7`)
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| REPORT-01 | Admin JWT, boarding_events exist | GET `/admin/reports/ridership?groupBy=route` | 200, counts per route match a manual `SELECT COUNT(*) ... GROUP BY route_name` | `[{"route_name":"South Gate to West Gate","boarding_count":3}]`, matched manual query | Pass |
+| REPORT-02 | Same as above | GET `/admin/reports/ridership?groupBy=vehicle` | 200, counts per `plate_number` match a manual query | `[{"plate_number":"FUTA-001","boarding_count":3}]`, matched manual query | Pass |
+| REPORT-03 | Same as above | GET `/admin/reports/ridership?groupBy=day` | 200, counts per day match a manual query | `[{"day":"2026-07-02","boarding_count":3}]` | Pass |
+| REPORT-04 | Admin JWT | GET `/admin/reports/ridership` with no `groupBy` | 200, defaults to route grouping | Same as REPORT-01 | Pass |
+| REPORT-05 | Admin JWT | GET `/admin/reports/ridership?groupBy=bogus` | 400 | `{"message":"Invalid groupBy. Must be one of: route, vehicle, day"}` | Pass |
+| REPORT-06 | — | GET `/admin/reports/ridership?groupBy=route` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| REPORT-07 | Student JWT | GET `/admin/reports/ridership?groupBy=route` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+
 ---
 
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
@@ -124,6 +136,7 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | Mobile | 7 | | | |
 | Non-functional | 4 | | | |
 | Complaints | 10 | | | |
-| **Total** | **55** | | | |
+| Ridership Report | 7 | | | |
+| **Total** | **62** | | | |
 
 SUS Score: ___ / 100 (n = ___)
