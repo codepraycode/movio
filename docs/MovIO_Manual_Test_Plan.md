@@ -95,6 +95,21 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | SUS-03 | Administer the standard 10-item SUS questionnaire immediately after | Compute score per Brooke (1996) scoring method |
 | SUS-04 | Collect open-ended feedback | Direct quotes (with permission) strengthen Chapter 4's qualitative section |
 
+## 9. Complaints (`BE-8`)
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| COMPLAINT-01 | Student JWT | POST `/complaints` with `{ description }` | 201, row created linked to `student_id`, `status='open'` | `{"success":true,"message":"Complaint submitted",...,"status":"open"}` | Pass |
+| COMPLAINT-02 | Student JWT | POST `/complaints` with missing `description` | 422, validation error | `{"field":"description","constraints":[...]}` | Pass |
+| COMPLAINT-03 | — | POST `/complaints` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| COMPLAINT-04 | Admin JWT, at least one complaint exists | GET `/admin/complaints` | 200, list includes complaint with submitting student's name joined in | Returned complaint with `first_name`/`last_name` populated | Pass |
+| COMPLAINT-05 | Same as above | GET `/admin/complaints?status=open` | 200, filtered list, only `open` complaints | Matched | Pass |
+| COMPLAINT-06 | Admin JWT | GET `/admin/complaints?status=bogus` | 400, invalid status filter | `{"message":"Invalid status filter. Must be one of: open, under_review, resolved"}` | Pass |
+| COMPLAINT-07 | Student JWT | GET `/admin/complaints` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+| COMPLAINT-08 | Admin JWT, complaint from COMPLAINT-01 | PATCH `/admin/complaints/:id` with `{ status: "resolved" }` | 200, status updated | `"status":"resolved"` returned | Pass |
+| COMPLAINT-09 | Admin JWT | PATCH `/admin/complaints/:id` with a non-existent id | 404 | `{"message":"Complaint not found"}` | Pass |
+| COMPLAINT-10 | Admin JWT | PATCH `/admin/complaints/:id` with an invalid `status` value | 422, validation error | `{"field":"status","constraints":[...]}` | Pass |
+
 ---
 
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
@@ -103,11 +118,12 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 |---|---|---|---|---|
 | Authentication | 8 | | | |
 | Boarding/NFC | 7 | | | |
-| Wallet | 2 | | | |
+| Wallet | 6 | | | |
 | Tracking | 6 | | | |
 | Dashboard | 7 | | | |
 | Mobile | 7 | | | |
 | Non-functional | 4 | | | |
-| **Total** | **41** | | | |
+| Complaints | 10 | | | |
+| **Total** | **55** | | | |
 
 SUS Score: ___ / 100 (n = ___)
