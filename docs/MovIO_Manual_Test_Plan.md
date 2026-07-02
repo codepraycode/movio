@@ -110,6 +110,20 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | COMPLAINT-09 | Admin JWT | PATCH `/admin/complaints/:id` with a non-existent id | 404 | `{"message":"Complaint not found"}` | Pass |
 | COMPLAINT-10 | Admin JWT | PATCH `/admin/complaints/:id` with an invalid `status` value | 422, validation error | `{"field":"status","constraints":[...]}` | Pass |
 
+## 10. Trip Lifecycle (`BE-9`)
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| TRIP-01 | Driver JWT, vehicle exists, no active trip on it | POST `/trips/start` with `{ vehicle_id, route_id }` | 201, trip created with `status='active'` | `{"success":true,...,"status":"active"}` | Pass |
+| TRIP-02 | Trip from TRIP-01 still active | POST `/trips/start` again with the same `vehicle_id` (different driver) | 409, no second trip created | `{"message":"This vehicle already has an active trip"}` | Pass |
+| TRIP-03 | Driver JWT | POST `/trips/start` with a non-existent `vehicle_id` | 400 | `{"message":"vehicle_id, route_id, or device_id does not reference an existing record"}` | Pass |
+| TRIP-04 | — | POST `/trips/start` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| TRIP-05 | Student JWT | POST `/trips/start` as a non-driver | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+| TRIP-06 | Trip from TRIP-01 active, second driver's JWT | POST `/trips/:id/end` as a driver who didn't start it | 403 | `{"message":"You can only end a trip you started"}` | Pass |
+| TRIP-07 | Driver JWT | POST `/trips/:id/end` with a non-existent trip id | 404 | `{"message":"Trip not found"}` | Pass |
+| TRIP-08 | Trip from TRIP-01 active, owning driver's JWT | POST `/trips/:id/end` | 200, `status='completed'`, `end_time` set | `"status":"completed","end_time":"2026-07-02T04:24:41.368Z"` | Pass |
+| TRIP-09 | Trip from TRIP-08 now completed | POST `/trips/:id/end` again | 409 | `{"message":"Trip is not active"}` | Pass |
+
 ---
 
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
@@ -124,6 +138,7 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | Mobile | 7 | | | |
 | Non-functional | 4 | | | |
 | Complaints | 10 | | | |
-| **Total** | **55** | | | |
+| Trip Lifecycle | 9 | | | |
+| **Total** | **64** | | | |
 
 SUS Score: ___ / 100 (n = ___)
