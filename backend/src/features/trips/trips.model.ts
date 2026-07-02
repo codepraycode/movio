@@ -45,7 +45,7 @@ export async function listTripsWithPassengerCounts(): Promise<TripMonitorRow[]> 
     const result = await query<TripMonitorRow>(`
         SELECT
             t.trip_id, t.status, t.start_time, t.end_time,
-            v.plate_number, v.vehicle_type,
+            v.plate_number, v.vehicle_type, v.capacity,
             r.route_name,
             u.first_name AS driver_first_name, u.last_name AS driver_last_name,
             COUNT(be.event_id)::int AS passenger_count
@@ -54,7 +54,7 @@ export async function listTripsWithPassengerCounts(): Promise<TripMonitorRow[]> 
         JOIN users u ON u.user_id = t.driver_id
         LEFT JOIN routes r ON r.route_id = t.route_id
         LEFT JOIN boarding_events be ON be.trip_id = t.trip_id
-        GROUP BY t.trip_id, v.plate_number, v.vehicle_type, r.route_name, u.first_name, u.last_name
+        GROUP BY t.trip_id, v.plate_number, v.vehicle_type, v.capacity, r.route_name, u.first_name, u.last_name
         ORDER BY t.start_time DESC
         LIMIT 50
     `);

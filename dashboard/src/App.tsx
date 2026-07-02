@@ -9,6 +9,7 @@ import Sustainability from './pages/Sustainability'
 import RoutesPage from './pages/Routes'
 import TripMonitoring from './pages/TripMonitoring'
 import DriverAssignment from './pages/DriverAssignment'
+import Vehicles from './pages/Vehicles'
 
 function App() {
     return (
@@ -23,6 +24,7 @@ function App() {
                     <Route path="/routes" element={<RoutesPage />} />
                     <Route path="/trips" element={<TripMonitoring />} />
                     <Route path="/driver-assignment" element={<DriverAssignment />} />
+                    <Route path="/vehicles" element={<Vehicles />} />
                 </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

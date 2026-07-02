@@ -20,18 +20,16 @@ interface NavItem {
     to?: string
 }
 
-// Fleet Map, Complaints, Ridership, Sustainability, Routes, Trip Monitoring and
-// Driver Assignment are real, backend-integrated screens (PSD-150/FE-7,
-// PSD-99/FE-8, PSD-151/FE-11 added Routes/Trip Monitoring/Driver Assignment).
-// Vehicles stays disabled - FE-6 (vehicle create/deactivate CRUD) hasn't been
-// built; vehicles are only listable (read-only) as supporting data for Driver
-// Assignment. See docs/admin_design_brief.md for the design reasoning.
+// Every nav item is now a real, backend-integrated screen. Vehicles (FE-6),
+// Routes (FE-7), Trip Monitoring (FE-8), Driver Assignment (FE-11) were the
+// last to land (PSD-96/PSD-150/PSD-99/PSD-151). See docs/admin_design_brief.md
+// for the design reasoning behind each screen.
 const NAV_ITEMS: NavItem[] = [
     { label: 'Fleet Map', to: '/', icon: Map },
     { label: 'Complaints', to: '/complaints', icon: AlertCircle },
     { label: 'Ridership', to: '/reports/ridership', icon: BarChart3 },
     { label: 'Sustainability', to: '/sustainability', icon: Leaf },
-    { label: 'Vehicles', icon: Bus },
+    { label: 'Vehicles', to: '/vehicles', icon: Bus },
     { label: 'Routes', to: '/routes', icon: RouteIcon },
     { label: 'Trip Monitoring', to: '/trips', icon: Radio },
     { label: 'Driver Assignment', to: '/driver-assignment', icon: Users },

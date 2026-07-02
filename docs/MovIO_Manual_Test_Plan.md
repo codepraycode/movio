@@ -107,7 +107,7 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | SUS-03 | Administer the standard 10-item SUS questionnaire immediately after | Compute score per Brooke (1996) scoring method |
 | SUS-04 | Collect open-ended feedback | Direct quotes (with permission) strengthen Chapter 4's qualitative section |
 
-## 9. Complaints (`BE-8`)
+## 9. Complaints (`BE-8`, `FE-10`)
 
 | ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
 |---|---|---|---|---|---|
@@ -136,7 +136,7 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | TRIP-08 | Trip from TRIP-01 active, owning driver's JWT | POST `/trips/:id/end` | 200, `status='completed'`, `end_time` set | `"status":"completed","end_time":"2026-07-02T04:24:41.368Z"` | Pass |
 | TRIP-09 | Trip from TRIP-08 now completed | POST `/trips/:id/end` again | 409 | `{"message":"Trip is not active"}` | Pass |
 
-## 11. Ridership Report (`BE-7`)
+## 11. Ridership Report (`BE-7`, `FE-9`)
 
 | ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
 |---|---|---|---|---|---|
@@ -173,18 +173,31 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 
 ## 14. Driver Assignment (`FE-11`)
 
-Requires the `assigned_driver_id` column on `vehicles` (see migration note below) - ASSIGN-01/02/07/08 don't touch that column (auth middleware runs first) and were verified without it; ASSIGN-03 through 06 need the migration applied and are marked pending until then.
+Required the `assigned_driver_id` column on `vehicles`, added by a migration the engineer ran themselves between sessions (confirmed applied this session - `GET /admin/vehicles` now returns the column). All rows below verified live.
 
 | ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
 |---|---|---|---|---|---|
 | ASSIGN-01 | Admin JWT, at least one driver registered | GET `/admin/users?role=driver` | 200, only `role='driver'` users returned | `[{"first_name":"Dele","last_name":"Driver","role":"driver"}]` | Pass |
 | ASSIGN-02 | Admin JWT | GET `/admin/users?role=bogus` | 400 | `{"message":"Invalid role. Must be one of: student, driver, transport_personnel, admin"}` | Pass |
-| ASSIGN-03 | Admin JWT, migration applied | PATCH `/admin/vehicles/:id/assign-driver` with `{"driver_id":"<driver user_id>"}` | 200, `GET /admin/vehicles` now shows that driver assigned | — | Pending (needs migration) |
-| ASSIGN-04 | Same | PATCH `.../assign-driver` with a `driver_id` belonging to a non-driver user | 400 | — | Pending (needs migration) |
-| ASSIGN-05 | Same | PATCH `.../assign-driver` with `{"driver_id":null}` | 200, vehicle shows unassigned | — | Pending (needs migration) |
-| ASSIGN-06 | Same | PATCH `.../assign-driver` for a non-existent vehicle id | 404 | — | Pending (needs migration) |
+| ASSIGN-03 | Admin JWT, vehicle + driver exist | PATCH `/admin/vehicles/:id/assign-driver` with `{"driver_id":"<driver user_id>"}` | 200, `GET /admin/vehicles` now shows that driver assigned | `{"assigned_driver_id":"1f4c9ff6...","driver_first_name":"Dele","driver_last_name":"Driver"}` | Pass |
+| ASSIGN-04 | Same | PATCH `.../assign-driver` with a `driver_id` belonging to a non-driver user | 400 | `{"message":"driver_id must reference a user with role=driver"}` | Pass |
+| ASSIGN-05 | Same | PATCH `.../assign-driver` with `{"driver_id":null}` | 200, vehicle shows unassigned | `{"assigned_driver_id":null,"driver_first_name":null,"driver_last_name":null}` | Pass |
+| ASSIGN-06 | Same | PATCH `.../assign-driver` for a non-existent vehicle id | 404 | `{"message":"Vehicle not found"}` | Pass |
 | ASSIGN-07 | — | GET `/admin/vehicles` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
 | ASSIGN-08 | Student JWT | PATCH `/admin/vehicles/:id/assign-driver` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
+
+## 15. Vehicle CRUD (`FE-6`)
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| VEHICLE-01 | Admin JWT | POST `/admin/vehicles` with `{"plate_number":"FUTA-TEST-...","vehicle_type":"tricycle","capacity":4}` | 201, vehicle created with `is_active:true` by default | `{"vehicle_type":"tricycle","capacity":4,"is_active":true}` | Pass |
+| VEHICLE-02 | Admin JWT | POST `/admin/vehicles` with `vehicle_type:"spaceship"` | 422, validation rejects any value outside `bus\|cab\|tricycle` | `{"message":"Validation failed","errors":[{"field":"vehicle_type","constraints":["vehicle_type must be one of the following values: bus, cab, tricycle"]}]}` | Pass |
+| VEHICLE-03 | Vehicle from VEHICLE-01 exists | POST `/admin/vehicles` again with the same `plate_number` | 409, no duplicate row created | `{"message":"A vehicle with this plate number already exists"}` | Pass |
+| VEHICLE-04 | Admin JWT, vehicle from VEHICLE-01 | PATCH `/admin/vehicles/:id` with `{"capacity":6,"vehicle_type":"cab"}` | 200, fields updated, `plate_number`/`is_active` untouched | `{"vehicle_type":"cab","capacity":6,"is_active":true}` | Pass |
+| VEHICLE-05 | Same vehicle | PATCH `/admin/vehicles/:id` with `{"is_active":false}` | 200, row **deactivated, not deleted** | `{"is_active":false}`, then confirmed the row still appears in `GET /admin/vehicles` with `is_active:false` | Pass |
+| VEHICLE-06 | Admin JWT | PATCH `/admin/vehicles/:id` for a non-existent vehicle id | 404 | `{"message":"Vehicle not found"}` | Pass |
+| VEHICLE-07 | — | POST `/admin/vehicles` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
+| VEHICLE-08 | Student JWT | POST `/admin/vehicles` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
 
 ---
 
@@ -205,6 +218,7 @@ Requires the `assigned_driver_id` column on `vehicles` (see migration note below
 | Route Management | 8 | | | |
 | Trip Monitoring | 5 | | | |
 | Driver Assignment | 8 | | | |
-| **Total** | **92** | | | |
+| Vehicle CRUD | 8 | | | |
+| **Total** | **100** | | | |
 
 SUS Score: ___ / 100 (n = ___)

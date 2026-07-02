@@ -92,7 +92,9 @@ export default function TripMonitoring() {
                                                 {meta.label}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 font-mono">{trip.passenger_count}</td>
+                                        <td className="px-4 py-3 font-mono">
+                                            {trip.passenger_count}/{trip.capacity}
+                                        </td>
                                         <td className="px-4 py-3 text-ink/50 whitespace-nowrap">
                                             {trip.status === 'active'
                                                 ? formatDuration(trip.start_time)

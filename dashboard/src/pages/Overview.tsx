@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import { divIcon } from 'leaflet'
-import { getActiveTrips, type ActiveTrip } from '../lib/api'
+import { getActiveTrips, type ActiveTrip, type LocationUpdateEvent } from '../lib/api'
+import { getSocket } from '../lib/socket'
 import { timeAgo } from '../lib/format'
 
 // Midpoint of the two stops already seeded in backend/db/seed.sql
@@ -10,9 +11,13 @@ import { timeAgo } from '../lib/format'
 const CAMPUS_CENTER: [number, number] = [7.30245, 5.1375]
 const CAMPUS_ZOOM = 16
 
-// Matches the TapTrace device's real ~5s location-update cadence (AGENTS.md) -
-// this is what the pulse-ring recency thresholds below are keyed against.
-const POLL_INTERVAL_MS = 5_000
+// Position updates for trips already on the map arrive live via the
+// location:update socket subscription below (FE-5) - this interval is now
+// only a reconciliation poll, picking up trips that start or end since the
+// socket payload carries no vehicle/route metadata to introduce/remove a
+// marker with. 20s is plenty for that; the pulse-ring recency thresholds
+// below are keyed off actual GPS timestamps, not this poll cadence.
+const RECONCILE_POLL_INTERVAL_MS = 20_000
 
 type Recency = 'live' | 'static' | 'stale'
 
@@ -52,23 +57,47 @@ export default function Overview() {
     const refresh = useCallback(async () => {
         try {
             const data = await getActiveTrips()
+            console.log("Trip Data", data)
             setTrips(data)
             setError(null)
-        } catch {
+        } catch(e) {
+            console.error(e)
             setError('Could not load live trip data.')
         }
+    }, [])
+
+    const handleLocationUpdate = useCallback((update: LocationUpdateEvent) => {
+        setTrips((prev) =>
+            prev
+                ? prev.map((t) =>
+                      t.trip_id === update.trip_id
+                          ? {
+                                ...t,
+                                latitude: update.latitude,
+                                longitude: update.longitude,
+                                last_location_at: update.recorded_at,
+                            }
+                          : t
+                  )
+                : prev
+        )
     }, [])
 
     useEffect(() => {
         // setTimeout(…, 0) defers the initial call off the effect's synchronous
         // call stack - see the same pattern/reasoning in StatusFooter.tsx.
         const initial = setTimeout(refresh, 0)
-        const interval = setInterval(refresh, POLL_INTERVAL_MS)
+        const interval = setInterval(refresh, RECONCILE_POLL_INTERVAL_MS)
+
+        const socket = getSocket()
+        socket.on('location:update', handleLocationUpdate)
+
         return () => {
             clearTimeout(initial)
             clearInterval(interval)
+            socket.off('location:update', handleLocationUpdate)
         }
-    }, [refresh])
+    }, [refresh, handleLocationUpdate])
 
     const withLocation = (trips ?? []).filter((t) => t.latitude != null && t.longitude != null)
     const routesInService = new Set((trips ?? []).map((t) => t.route_name).filter(Boolean)).size

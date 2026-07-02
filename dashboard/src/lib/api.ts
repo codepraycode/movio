@@ -82,6 +82,16 @@ export function getActiveTrips(): Promise<ActiveTrip[]> {
     return apiGet<ActiveTrip[]>('/tracking/active')
 }
 
+// Shape of the 'location:update' Socket.io event (backend/src/features/tracking/
+// tracking.socket.ts). No vehicle/route metadata - just enough to move an
+// already-known marker, not to introduce a new one.
+export interface LocationUpdateEvent {
+    trip_id: string
+    latitude: number
+    longitude: number
+    recorded_at: string
+}
+
 export type ComplaintStatus = 'open' | 'under_review' | 'resolved'
 
 export interface Complaint {
@@ -151,6 +161,29 @@ export function assignDriver(vehicleId: string, driverId: string | null): Promis
     })
 }
 
+export function createVehicle(
+    plateNumber: string,
+    vehicleType: VehicleType,
+    capacity: number
+): Promise<Vehicle> {
+    return apiMutate<Vehicle>('/admin/vehicles', 'POST', {
+        plate_number: plateNumber,
+        vehicle_type: vehicleType,
+        capacity,
+    })
+}
+
+export interface VehiclePatch {
+    plate_number?: string
+    vehicle_type?: VehicleType
+    capacity?: number
+    is_active?: boolean
+}
+
+export function updateVehicle(vehicleId: string, patch: VehiclePatch): Promise<Vehicle> {
+    return apiMutate<Vehicle>(`/admin/vehicles/${vehicleId}`, 'PATCH', patch)
+}
+
 export interface DriverUser {
     user_id: string
     first_name: string
@@ -203,6 +236,7 @@ export interface TripMonitorRow {
     end_time: string | null
     plate_number: string
     vehicle_type: VehicleType
+    capacity: number
     route_name: string | null
     driver_first_name: string
     driver_last_name: string

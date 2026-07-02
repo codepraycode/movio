@@ -1,5 +1,5 @@
 import { query } from '../../config/db';
-import type { UserRole } from '../../types';
+import type { UserRole, Vehicle, VehicleType } from '../../types';
 import type { VehicleWithDriver } from './vehicles.types';
 
 export async function listVehiclesWithDriver(): Promise<VehicleWithDriver[]> {
@@ -33,5 +33,46 @@ export async function assignDriver(vehicleId: string, driverId: string | null): 
         driverId,
         vehicleId,
     ]);
+    return (result.rowCount ?? 0) > 0;
+}
+
+export async function insertVehicle(
+    plateNumber: string,
+    vehicleType: VehicleType,
+    capacity: number,
+    isActive: boolean
+): Promise<Vehicle> {
+    const result = await query<Vehicle>(
+        `INSERT INTO vehicles (plate_number, vehicle_type, capacity, is_active)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [plateNumber, vehicleType, capacity, isActive]
+    );
+    return result.rows[0];
+}
+
+export interface VehiclePatch {
+    plate_number?: string;
+    vehicle_type?: VehicleType;
+    capacity?: number;
+    is_active?: boolean;
+}
+
+export async function updateVehicle(vehicleId: string, patch: VehiclePatch): Promise<boolean> {
+    const result = await query(
+        `UPDATE vehicles SET
+            plate_number = COALESCE($1, plate_number),
+            vehicle_type = COALESCE($2, vehicle_type),
+            capacity = COALESCE($3, capacity),
+            is_active = COALESCE($4, is_active)
+         WHERE vehicle_id = $5`,
+        [
+            patch.plate_number ?? null,
+            patch.vehicle_type ?? null,
+            patch.capacity ?? null,
+            patch.is_active ?? null,
+            vehicleId,
+        ]
+    );
     return (result.rowCount ?? 0) > 0;
 }
