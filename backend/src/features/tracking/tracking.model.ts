@@ -6,7 +6,7 @@ export async function insertLocationUpdate(
     latitude: number,
     longitude: number
 ): Promise<LocationUpdateRow> {
-    const result = await query(
+    const result = await query<LocationUpdateRow>(
         `INSERT INTO location_updates (trip_id, latitude, longitude)
          VALUES ($1, $2, $3)
          RETURNING update_id, trip_id, latitude, longitude, recorded_at`,
@@ -16,7 +16,7 @@ export async function insertLocationUpdate(
 }
 
 export async function findActiveTripsWithLastLocation(): Promise<ActiveTripRow[]> {
-    const result = await query(`
+    const result = await query<ActiveTripRow>(`
         SELECT
             t.trip_id, t.status, t.start_time,
             v.plate_number, v.vehicle_type,

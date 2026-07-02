@@ -1,4 +1,5 @@
 import { IsLatitude, IsLongitude, IsNotEmpty, IsString } from 'class-validator';
+import type { LocationUpdate, Route, Trip, Vehicle } from '../../types';
 
 export class LocationUpdateDto {
     @IsString()
@@ -12,22 +13,13 @@ export class LocationUpdateDto {
     longitude!: number;
 }
 
-export interface LocationUpdateRow {
-    update_id: string;
-    trip_id: string;
-    latitude: number;
-    longitude: number;
-    recorded_at: string;
-}
+export type LocationUpdateRow = LocationUpdate;
 
-export interface ActiveTripRow {
-    trip_id: string;
-    status: string;
-    start_time: string;
-    plate_number: string;
-    vehicle_type: string;
-    route_name: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    last_location_at: string | null;
+export interface ActiveTripRow
+    extends Pick<Trip, 'trip_id' | 'status' | 'start_time'>,
+        Pick<Vehicle, 'plate_number' | 'vehicle_type'> {
+    route_name: Route['route_name'] | null;
+    latitude: LocationUpdate['latitude'] | null;
+    longitude: LocationUpdate['longitude'] | null;
+    last_location_at: LocationUpdate['recorded_at'] | null;
 }

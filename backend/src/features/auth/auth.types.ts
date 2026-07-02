@@ -1,6 +1,6 @@
 import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
-
-const ROLES = ['student', 'driver', 'transport_personnel', 'admin'] as const;
+import { USER_ROLES } from '../../types';
+import type { User, UserRole } from '../../types';
 
 export class RegisterDto {
     @IsOptional()
@@ -27,8 +27,8 @@ export class RegisterDto {
     password!: string;
 
     @IsOptional()
-    @IsIn(ROLES)
-    role?: string;
+    @IsIn(USER_ROLES)
+    role?: UserRole;
 }
 
 export class LoginDto {
@@ -41,6 +41,6 @@ export class LoginDto {
 }
 
 export interface AuthResult {
-    user: Record<string, unknown>;
+    user: Omit<User, 'password_hash'>;
     token: string;
 }

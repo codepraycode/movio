@@ -23,7 +23,10 @@ export default defineConfig([
       // exactly 4 params: err, req, res, next) - leading-underscore params
       // are intentionally unused (kept only so the arity is correct) and
       // should never be flagged/removed.
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
     },
   },
 ])

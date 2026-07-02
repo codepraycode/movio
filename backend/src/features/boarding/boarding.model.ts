@@ -1,10 +1,14 @@
 import type { PoolClient } from 'pg';
 import { query, pool } from '../../config/db';
+import type { BoardingEvent, NfcCredential, TransitWallet, User } from '../../types';
 
 export { pool };
 
-export async function findActiveCredentialByUid(uid: string): Promise<Record<string, unknown> | undefined> {
-    const result = await query(
+export type ActiveCredential = Pick<NfcCredential, 'credential_id' | 'user_id' | 'is_active'> &
+    Pick<User, 'first_name' | 'last_name'>;
+
+export async function findActiveCredentialByUid(uid: string): Promise<ActiveCredential | undefined> {
+    const result = await query<ActiveCredential>(
         `SELECT c.credential_id, c.user_id, c.is_active, u.first_name, u.last_name
          FROM nfc_credentials c
          JOIN users u ON u.user_id = c.user_id
@@ -14,8 +18,10 @@ export async function findActiveCredentialByUid(uid: string): Promise<Record<str
     return result.rows[0];
 }
 
-export async function findWalletByUserId(userId: string): Promise<Record<string, unknown> | undefined> {
-    const result = await query(
+export type WalletBalance = Pick<TransitWallet, 'wallet_id' | 'balance_credits'>;
+
+export async function findWalletByUserId(userId: string): Promise<WalletBalance | undefined> {
+    const result = await query<WalletBalance>(
         `SELECT wallet_id, balance_credits FROM transit_wallets WHERE user_id = $1`,
         [userId]
     );
@@ -42,6 +48,8 @@ export async function insertCreditTransaction(
     );
 }
 
+export type NewBoardingEvent = Pick<BoardingEvent, 'event_id' | 'boarded_at'>;
+
 export async function insertBoardingEvent(
     client: PoolClient,
     tripId: string,
@@ -49,8 +57,8 @@ export async function insertBoardingEvent(
     credentialId: string,
     latitude: number | null,
     longitude: number | null
-): Promise<Record<string, unknown>> {
-    const result = await client.query(
+): Promise<NewBoardingEvent> {
+    const result = await client.query<NewBoardingEvent>(
         `INSERT INTO boarding_events (trip_id, student_id, credential_id, latitude, longitude)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING event_id, boarded_at`,

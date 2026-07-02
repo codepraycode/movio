@@ -33,12 +33,12 @@ export async function registerUser(data: RegisterDto): Promise<AuthResult> {
         });
 
         if (finalRole === 'student') {
-            await authModel.insertWallet(client, user.user_id as string);
+            await authModel.insertWallet(client, user.user_id);
         }
 
         await client.query('COMMIT');
 
-        const token = signToken({ user_id: user.user_id as string, role: user.role as string });
+        const token = signToken({ user_id: user.user_id, role: user.role });
         return { user, token };
     } catch (err) {
         await client.query('ROLLBACK');
@@ -61,12 +61,12 @@ export async function loginUser({ email, password }: LoginDto): Promise<AuthResu
         throw new UnauthorizedError('Invalid email or password');
     }
 
-    const match = await bcrypt.compare(password, user.password_hash as string);
+    const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
         throw new UnauthorizedError('Invalid email or password');
     }
 
-    const token = signToken({ user_id: user.user_id as string, role: user.role as string });
-    delete user.password_hash;
-    return { user, token };
+    const token = signToken({ user_id: user.user_id, role: user.role });
+    const { password_hash, ...safeUser } = user;
+    return { user: safeUser, token };
 }

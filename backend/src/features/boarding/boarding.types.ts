@@ -23,5 +23,5 @@ export interface BoardingResult {
     reason?: 'unrecognized_or_inactive_card' | 'insufficient_credits';
     student_name?: string;
     event_id?: string;
-    boarded_at?: string;
+    boarded_at?: Date;
 }

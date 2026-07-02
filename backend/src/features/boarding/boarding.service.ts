@@ -22,8 +22,8 @@ export async function authenticateBoarding(
     const studentName = `${credential.first_name} ${credential.last_name}`;
 
     // 2. Check wallet balance
-    const wallet = await boardingModel.findWalletByUserId(credential.user_id as string);
-    if (!wallet || (wallet.balance_credits as number) <= 0) {
+    const wallet = await boardingModel.findWalletByUserId(credential.user_id);
+    if (!wallet || wallet.balance_credits <= 0) {
         return { success: false, reason: 'insufficient_credits', student_name: studentName };
     }
 
@@ -32,13 +32,13 @@ export async function authenticateBoarding(
     try {
         await client.query('BEGIN');
 
-        await boardingModel.deductWalletCredit(client, wallet.wallet_id as string);
-        await boardingModel.insertCreditTransaction(client, wallet.wallet_id as string, tripId);
+        await boardingModel.deductWalletCredit(client, wallet.wallet_id);
+        await boardingModel.insertCreditTransaction(client, wallet.wallet_id, tripId);
         const event = await boardingModel.insertBoardingEvent(
             client,
             tripId,
-            credential.user_id as string,
-            credential.credential_id as string,
+            credential.user_id,
+            credential.credential_id,
             latitude ?? null,
             longitude ?? null
         );
@@ -48,8 +48,8 @@ export async function authenticateBoarding(
         return {
             success: true,
             student_name: studentName,
-            event_id: event.event_id as string,
-            boarded_at: event.boarded_at as string,
+            event_id: event.event_id,
+            boarded_at: event.boarded_at,
         };
     } catch (err) {
         await client.query('ROLLBACK');
