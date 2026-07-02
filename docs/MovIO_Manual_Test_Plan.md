@@ -57,16 +57,25 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 
 | ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
 |---|---|---|---|---|---|
-| DASH-01 | Admin account exists | Log into dashboard | Redirected to main view, JWT stored | | |
-| DASH-02 | Active trip with location updates | View live fleet map | Vehicle marker appears and updates position live | | |
-| DASH-03 | — | Create a new vehicle via the UI | Appears in vehicle list, matches DB | | |
-| DASH-04 | — | Create a new route with stops | Saved correctly, retrievable | | |
-| DASH-05 | Several boarding events exist | View ridership report | Numbers match a manual COUNT query against `boarding_events` | | |
-| DASH-06 | A complaint exists (inserted via API or later via mobile app) | View complaints list | Appears with correct status, can be marked resolved | | |
+| DASH-01 | Admin account exists | Log into dashboard with correct email/password | Redirected to Fleet Map, JWT + admin name stored, topbar shows admin's name | | |
+| DASH-01b | Admin account exists | Log in with wrong password | Plain-language error banner shown, no redirect, no token stored | | |
+| DASH-01c | Non-admin (student/driver/transport_personnel) account exists | Log in with correct credentials for that account | Rejected with "This dashboard is for admin accounts only.", no token stored | | |
+| DASH-02 | Active trip with a location update in the last 5s | View Fleet Map | Marker shows the amber pulse-ring animation | | |
+| DASH-02b | Active trip, last location update 5-15s old | View Fleet Map | Marker shown static (no pulse), same amber dot | | |
+| DASH-02c | Active trip, last location update >15s old | View Fleet Map | Marker fades to a grey outline only | | |
+| DASH-02d | No active trips | View Fleet Map | Campus map still renders; "No active trips right now. Trips appear here once a driver starts one." shown | | |
+| DASH-03 | — | Create a new vehicle via the UI | Not built this pass — no backend vehicle-management endpoint exists; nav item shows "Soon" | | N/A |
+| DASH-04 | — | Create a new route with stops | Not built this pass — no backend route-management endpoint exists; nav item shows "Soon" | | N/A |
+| DASH-05 | Several boarding events exist | View Ridership screen, switch groupBy route/vehicle/day | Table numbers match a manual `COUNT ... GROUP BY` query against `boarding_events` for each grouping; chart bars match the table | | |
+| DASH-06 | Complaints exist in each status | View Complaints screen, filter by status tab | Correct subset shown per tab, student name/description/trip/submitted-time all correct | | |
+| DASH-06b | Open complaint exists | Change its status via the row dropdown | `PATCH` succeeds, badge updates to new status without a full page reload | | |
+| DASH-06c | No complaints match the current filter | View Complaints screen | "No open complaints." shown (plain register, no celebratory copy) | | |
 | DASH-07 | — | Log out, try to access dashboard routes directly by URL | Redirected to login, no data leaks in network tab | | |
-| DASH-08 | Backend + Supabase both reachable | View the system status card on Overview | Shows "Operational", database latency in ms, backend uptime | | |
-| DASH-09 | Backend running, Supabase connection broken/paused | View the system status card | Shows "Degraded" (backend up, DB unreachable), `GET /health` returns 503 | | |
-| DASH-10 | Backend not running / unreachable | View the system status card | Shows "Slow to respond" then "Unreachable" after the 10s timeout, refresh button still works | | |
+| DASH-08 | Backend + Supabase both reachable | View the status bar in the dashboard footer | Shows "All systems normal", technical detail (DB status/latency/uptime) available via hover tooltip only | | |
+| DASH-09 | Backend running, Supabase connection broken/paused | View the status bar in the dashboard footer | Shows "Some features may be slower than usual", `GET /health` returns 503 | | |
+| DASH-10 | Backend not running / unreachable | View the status bar in the dashboard footer | Shows "Taking longer than usual to respond" then "System temporarily unavailable" after the 10s timeout, Refresh button still works | | |
+| DASH-11 | Ridership data exists, no fuel figure saved yet | View Sustainability screen | Prompts for a fuel estimate instead of showing a fabricated number; real trip count still shown | | |
+| DASH-11b | Admin enters and saves a fuel-per-trip figure | View Sustainability screen | Headline litres = trip count × saved figure, labeled "Estimated · pending confirmed fuel data"; persists after a page reload (same browser) | | |
 
 ## 6. Mobile App (`MOB-*`)
 

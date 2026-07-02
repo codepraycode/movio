@@ -1,10 +1,11 @@
 import { createContext } from 'react'
-import type { UserRole } from '../lib/auth'
+import type { StoredUser, UserRole } from '../lib/auth'
 
 export interface AuthContextValue {
     isAuthenticated: boolean
     role: UserRole | null
-    login: (token: string) => void
+    user: StoredUser | null
+    login: (token: string, user: StoredUser) => void
     logout: () => void
 }
 

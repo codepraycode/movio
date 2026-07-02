@@ -1,9 +1,32 @@
 @import 'tailwindcss';
 
-/* MovIO brand blue - matches the seed color already used in mobile/lib/main.dart,
-   kept as the one color signal shared across the two frontends. */
+/* Self-hosted (npm package, bundled .woff2 - no CDN request). This matters on
+   defence day: campus wifi hiccuping shouldn't make the UI flash unstyled text
+   in front of examiners. Only the weights actually used are imported. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* MovIO admin design tokens, per docs/admin_design_brief.md. This is an ops
+   tool read in bright, mixed-quality-monitor campus offices - light-only by
+   design, not a placeholder pending a dark mode.
+   Note: --color-brand here (#1E4FD6, from the brief) intentionally no longer
+   matches mobile/lib/main.dart's seed color (#1A56DB) - that app is a
+   separate design surface, left untouched. */
 @theme {
-    --color-brand: #1a56db;
+    --color-ink: #101828;
+    --color-paper: #fafaf8;
+    --color-surface: #ffffff;
+    --color-line: #e4e4e1;
+    --color-brand: #1e4fd6;
+    --color-signal: #f59e0b;
+    --color-sustain: #1f8a5f;
+    --color-alert: #d9483c;
+    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 
 *,
@@ -14,14 +37,36 @@
 
 body {
     margin: 0;
-    font-family:
-        system-ui,
-        -apple-system,
-        sans-serif;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
     min-height: 100vh;
+}
+
+/* Signature element - every live-vehicle marker on the fleet map pulses when
+   its last GPS update is within the device's real ~5s update interval. Plain
+   CSS keyframes, no animation library: one effect doesn't justify the added
+   dependency/learning cost of Framer Motion. */
+@keyframes pulse-live {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.7;
+    }
+    70% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+}
+
+.pulse-ring {
+    animation: pulse-live 1.6s ease-out infinite;
 }
