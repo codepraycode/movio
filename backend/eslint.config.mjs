@@ -18,5 +18,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.node,
     },
+    rules: {
+      // Express detects error-handling middleware by function arity (must be
+      // exactly 4 params: err, req, res, next) - leading-underscore params
+      // are intentionally unused (kept only so the arity is correct) and
+      // should never be flagged/removed.
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
   },
 ])

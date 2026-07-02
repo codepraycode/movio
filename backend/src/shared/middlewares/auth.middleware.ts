@@ -1,14 +1,15 @@
 import type { RequestHandler } from 'express';
 import { verifyToken } from '../utils/jwt';
+import { ForbiddenError, UnauthorizedError } from '../errors';
 
 /**
  * Requires a valid JWT in the Authorization: Bearer <token> header.
  * Attaches the decoded payload to req.user.
  */
-export const requireAuth: RequestHandler = (req, res, next) => {
+export const requireAuth: RequestHandler = (req, _res, next) => {
     const header = req.headers.authorization;
     if (!header || !header.startsWith('Bearer ')) {
-        res.status(401).json({ error: 'Missing or malformed Authorization header' });
+        next(new UnauthorizedError('Missing or malformed Authorization header'));
         return;
     }
 
@@ -17,7 +18,7 @@ export const requireAuth: RequestHandler = (req, res, next) => {
         req.user = verifyToken(token); // { user_id, role, iat, exp }
         next();
     } catch {
-        res.status(401).json({ error: 'Invalid or expired token' });
+        next(new UnauthorizedError('Invalid or expired token'));
     }
 };
 
@@ -26,9 +27,9 @@ export const requireAuth: RequestHandler = (req, res, next) => {
  * Example: router.get('/admin/x', requireAuth, requireRole('admin'), handler)
  */
 export function requireRole(...allowedRoles: string[]): RequestHandler {
-    return (req, res, next) => {
+    return (req, _res, next) => {
         if (!req.user || !allowedRoles.includes(req.user.role)) {
-            res.status(403).json({ error: 'Forbidden - insufficient role' });
+            next(new ForbiddenError('Forbidden - insufficient role'));
             return;
         }
         next();

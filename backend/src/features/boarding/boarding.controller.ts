@@ -1,13 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { authenticateBoarding as runBoardingAuth } from './boarding.service';
-import type { BoardingRequestBody } from './boarding.types';
+import { sendSuccess } from '../../shared/utils/ApiResponse';
+import type { BoardingDto } from './boarding.types';
 
 /**
  * POST /api/v1/boarding/authenticate
- *
- * Expected body: { uid, trip_id, latitude, longitude }
- * uid = the NFC UID read from the card/phone by the reader
- * trip_id = the active trip the TapTrace device is currently attached to
+ * req.body is a validated BoardingDto by the time it gets here - see
+ * boarding.routes.ts's validateDto(BoardingDto) middleware.
  *
  * NOTE: this route is deliberately NOT behind requireAuth with a student JWT -
  * the student isn't logged into anything at the point of boarding, the reader
@@ -20,15 +19,11 @@ export async function authenticateBoarding(
     res: Response,
     next: NextFunction
 ): Promise<void> {
-    const { uid, trip_id, latitude, longitude } = req.body as Partial<BoardingRequestBody>;
-    if (!uid || !trip_id) {
-        res.status(400).json({ error: 'uid and trip_id are required' });
-        return;
-    }
+    const { uid, trip_id, latitude, longitude } = req.body as BoardingDto;
 
     try {
         const result = await runBoardingAuth(uid, trip_id, latitude, longitude);
-        res.status(200).json(result);
+        sendSuccess(res, result, 'Boarding attempt processed');
     } catch (err) {
         next(err);
     }

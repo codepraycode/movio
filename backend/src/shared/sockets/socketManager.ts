@@ -1,5 +1,6 @@
 import type { Server } from 'socket.io';
 import { socketAuth } from './socketAuth';
+import { logger } from '../utils/logger';
 
 /**
  * Attaches Socket.io to the HTTP server. Kept intentionally thin for now -
@@ -11,9 +12,9 @@ export function initSocketManager(io: Server): void {
     io.use(socketAuth);
 
     io.on('connection', (socket) => {
-        console.log(`Client connected: ${socket.id}`);
+        logger.info(`Client connected: ${socket.id}`);
         socket.on('disconnect', () => {
-            console.log(`Client disconnected: ${socket.id}`);
+            logger.info(`Client disconnected: ${socket.id}`);
         });
     });
 }

@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import type { QueryResult } from 'pg';
 import { env } from './env.config';
+import { logger } from '../shared/utils/logger';
 
 // Single shared connection pool. Import { query } wherever you need the DB.
 const pool = new Pool({
@@ -10,7 +11,7 @@ const pool = new Pool({
 
 pool.on('error', (err) => {
     // Unexpected error on idle client - log and let the process manager restart if needed
-    console.error('Unexpected Postgres pool error', err);
+    logger.error('Unexpected Postgres pool error: %s', err.message);
 });
 
 const query = (text: string, params?: unknown[]): Promise<QueryResult> =>

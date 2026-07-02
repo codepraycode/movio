@@ -1,7 +1,15 @@
-export interface LocationUpdateBody {
-    trip_id: string;
-    latitude: number;
-    longitude: number;
+import { IsLatitude, IsLongitude, IsNotEmpty, IsString } from 'class-validator';
+
+export class LocationUpdateDto {
+    @IsString()
+    @IsNotEmpty()
+    trip_id!: string;
+
+    @IsLatitude()
+    latitude!: number;
+
+    @IsLongitude()
+    longitude!: number;
 }
 
 export interface LocationUpdateRow {

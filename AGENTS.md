@@ -60,7 +60,7 @@ One repo, parallel-track development: hardware (`firmware/`) and software (`back
 
 
 ## Tech stack — don't silently swap these without discussion
-- **Backend:** Node.js + Express, raw `pg` (no ORM — deliberate, keeps queries visible/explainable for defence), PostgreSQL hosted on **Supabase** (free tier — chosen over Render's free Postgres because it pauses rather than hard-deletes after inactivity), Socket.io, JWT + `bcryptjs` (not `bcrypt` — native bindings failed to build in a sandboxed test environment; pure-JS avoids that class of problem entirely)
+- **Backend:** Node.js + Express (TypeScript, feature-based structure under `backend/src/features/*`), raw `pg` (no ORM — deliberate, keeps queries visible/explainable for defence), PostgreSQL hosted on **Supabase** (free tier — chosen over Render's free Postgres because it pauses rather than hard-deletes after inactivity; RLS is enabled on every table with no policies purely to lock out Supabase's auto-generated PostgREST API — the backend connects as the `postgres` role, which bypasses RLS, so authorization is still enforced entirely in Express), Socket.io, JWT + `bcryptjs` (not `bcrypt` — native bindings failed to build in a sandboxed test environment; pure-JS avoids that class of problem entirely), `winston` for colorized structured logging (HTTP access logs piped through it via `morgan`), `class-validator`/`class-transformer` for request DTO validation, a small `AppError` subclass hierarchy (`shared/errors/`) + centralized error middleware, and a consistent `{ success, message, data }` / `{ success, message, errors }` response envelope (`shared/utils/ApiResponse.ts`)
 - **Dashboard:** React + Vite + Tailwind, Leaflet + OpenStreetMap. Deploys to **Vercel** (free), root directory `dashboard`
 - **Backend deployment:** **Render** free Web Service, root directory `backend`. Known tradeoff: spins down after 15 min idle, ~30-60s cold start on next request. For live defence demos, run the backend locally instead of relying on the deployed cold-start-prone instance.
 - **Mobile:** Flutter (Dart), flutter_map + OpenStreetMap, flutter_nfc_kit, geolocator. No cloud deployment — build APK locally, install on a test device.
@@ -92,11 +92,13 @@ Manual testing is the primary strategy here (student-led final year project, tig
 - Don't skip `docs/MovIO_Manual_Test_Plan.md` when a feature is "done" — done means tested, not just implemented
 
 ## Where things stand (keep this current - update at the end of each work session)
-- [x] Backend core logic written and sandbox-tested: auth, boarding (with wallet deduction transaction), tracking, MQTT client with graceful degradation when unconfigured
-- [ ] Backend TypeScript migration
+- [x] Backend core logic written: auth, boarding (with wallet deduction transaction), tracking. No MQTT client is actually implemented yet despite an earlier note claiming graceful degradation - `boarding.controller.ts` only *references* an eventual MQTT bridge in a comment; building the real client is still open, blocked on TapTrace parts anyway.
+- [x] Backend TypeScript migration - done, feature-based structure (`backend/src/features/{auth,boarding,tracking}`, `shared/`, `config/`)
+- [x] Backend cross-cutting infra: `winston` colorized logging (morgan piped through it), `AppError` class hierarchy + centralized error middleware, `class-validator`/`class-transformer` DTO validation on every mutating route, consistent `{success,message,data}` response envelope, fail-fast env var validation (`DATABASE_URL`/`JWT_SECRET` required or the process won't start), RLS enabled (no policies) on every Supabase table to lock out the auto-generated PostgREST API
+- [x] Backend + dashboard tooling: ESLint + Prettier wired together in both, VS Code autosave/format-on-save/ESLint-fix-on-save configured for the monorepo
 - [ ] Backend remaining endpoints: admin ridership report, complaints, trip lifecycle, cash top-up
-- [ ] Dashboard (not yet scaffolded)
-- [ ] Mobile app (not yet scaffolded, environment confirmed ready)
+- [x] Dashboard scaffolded (Vite + React + TS + Tailwind v4 + react-router-dom + Leaflet/react-leaflet) - no real screens/features built yet, just the placeholder shell
+- [x] Mobile scaffolded (Flutter deps added: flutter_map, flutter_nfc_kit, geolocator, http, provider, socket_io_client; Android NFC/location/internet permissions set) - no real screens/features built yet, just the placeholder shell
 - [ ] TapTrace firmware (blocked on parts ordering)
 - [ ] MQTT broker (HiveMQ Cloud account not yet confirmed created)
 - [ ] Manual testing (test plan written, execution not started)

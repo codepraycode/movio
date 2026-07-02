@@ -1,7 +1,20 @@
-export interface BoardingRequestBody {
-    uid: string;
-    trip_id: string;
+import { IsLatitude, IsLongitude, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class BoardingDto {
+    @IsString()
+    @IsNotEmpty()
+    uid!: string; // NFC UID read from the card/phone by the reader
+
+    @IsString()
+    @IsNotEmpty()
+    trip_id!: string; // the active trip the TapTrace device is currently attached to
+
+    @IsOptional()
+    @IsLatitude()
     latitude?: number;
+
+    @IsOptional()
+    @IsLongitude()
     longitude?: number;
 }
 
