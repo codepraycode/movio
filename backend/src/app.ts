@@ -5,6 +5,7 @@ import { sendSuccess } from './shared/utils/ApiResponse';
 import authRoutes from './features/auth/auth.routes';
 import boardingRoutes from './features/boarding/boarding.routes';
 import trackingRoutes from './features/tracking/tracking.routes';
+import complaintsRoutes, { adminComplaintsRouter } from './features/complaints/complaints.routes';
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.get('/health', (_req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/boarding', boardingRoutes);
 app.use('/api/v1/tracking', trackingRoutes);
+app.use('/api/v1/complaints', complaintsRoutes);
+app.use('/api/v1/admin/complaints', adminComplaintsRouter);
 
 app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Not found' });
