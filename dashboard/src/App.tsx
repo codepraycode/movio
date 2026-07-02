@@ -1,11 +1,20 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { ProtectedRoute } from './routes/ProtectedRoute'
+import { DashboardLayout } from './components/layout/DashboardLayout'
+import Login from './pages/Login'
+import Overview from './pages/Overview'
+
 function App() {
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900">MovIO</h1>
-                <p className="mt-2 text-gray-500">Admin Dashboard — FUTA Campus Transport</p>
-            </div>
-        </div>
+        <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedRoute />}>
+                <Route element={<DashboardLayout />}>
+                    <Route path="/" element={<Overview />} />
+                </Route>
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
     )
 }
 

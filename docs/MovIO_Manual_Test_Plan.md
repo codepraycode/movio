@@ -64,6 +64,9 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | DASH-05 | Several boarding events exist | View ridership report | Numbers match a manual COUNT query against `boarding_events` | | |
 | DASH-06 | A complaint exists (inserted via API or later via mobile app) | View complaints list | Appears with correct status, can be marked resolved | | |
 | DASH-07 | — | Log out, try to access dashboard routes directly by URL | Redirected to login, no data leaks in network tab | | |
+| DASH-08 | Backend + Supabase both reachable | View the system status card on Overview | Shows "Operational", database latency in ms, backend uptime | | |
+| DASH-09 | Backend running, Supabase connection broken/paused | View the system status card | Shows "Degraded" (backend up, DB unreachable), `GET /health` returns 503 | | |
+| DASH-10 | Backend not running / unreachable | View the system status card | Shows "Slow to respond" then "Unreachable" after the 10s timeout, refresh button still works | | |
 
 ## 6. Mobile App (`MOB-*`)
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import { coreMiddlewares } from './shared/middlewares/core.middleware';
 import errorHandler from './shared/middlewares/error.middleware';
-import { sendSuccess } from './shared/utils/ApiResponse';
+import { getHealthStatus } from './shared/utils/health';
 import authRoutes from './features/auth/auth.routes';
 import boardingRoutes from './features/boarding/boarding.routes';
 import trackingRoutes from './features/tracking/tracking.routes';
@@ -14,8 +14,9 @@ const app = express();
 
 app.use(coreMiddlewares);
 
-app.get('/health', (_req, res) => {
-    sendSuccess(res, { service: 'movio-backend' }, 'ok');
+app.get('/health', async (_req, res) => {
+    const { statusCode, body } = await getHealthStatus();
+    res.status(statusCode).json(body);
 });
 
 app.use('/api/v1/auth', authRoutes);

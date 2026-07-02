@@ -1,4 +1,10 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/* MovIO brand blue - matches the seed color already used in mobile/lib/main.dart,
+   kept as the one color signal shared across the two frontends. */
+@theme {
+    --color-brand: #1a56db;
+}
 
 *,
 *::before,
@@ -8,7 +14,10 @@
 
 body {
     margin: 0;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
