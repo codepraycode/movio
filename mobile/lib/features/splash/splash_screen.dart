@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_system_ui.dart';
 import '../../core/theme/app_typography.dart';
-import '../../shared/widgets/app_logo.dart';
+import '../../shared/widgets/movio_mark.dart';
 import '../auth/state/auth_provider.dart';
 
-/// The in-app splash, shown while [AuthProvider.status] is `unknown`.
+/// Brand splash shown while [AuthProvider.status] is `unknown`.
 ///
-/// Two jobs:
-///   1. Play a short brand animation (the mark scales + fades in on the green
-///      gradient) — a deliberate first impression, and a seam that hides the
-///      hand-off from the OS's native splash.
-///   2. Kick off [AuthProvider.bootstrap] (read any stored session). When that
-///      finishes, `status` flips and the AuthGate swaps this out for home/login.
-/// A minimum on-screen time keeps it from flashing when storage reads instantly.
+/// The white "M" draws itself over the green gradient, the pin lands, then the
+/// wordmark + tagline rise in — a single controller driving three overlapping
+/// intervals. Meanwhile [_boot] restores any saved session; when it finishes,
+/// `status` flips and the AuthGate swaps us out for onboarding/login/home.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -24,92 +23,88 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
+  late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 1700),
   );
 
-  late final Animation<double> _fade = CurvedAnimation(
-    parent: _controller,
-    curve: Curves.easeOut,
-  );
-  late final Animation<double> _scale = Tween(begin: 0.82, end: 1.0).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-  );
+  // Overlapping phases carved out of the one controller.
+  late final Animation<double> _draw =
+      CurvedAnimation(parent: _c, curve: const Interval(0.0, 0.62, curve: Curves.easeInOut));
+  late final Animation<double> _text =
+      CurvedAnimation(parent: _c, curve: const Interval(0.55, 1.0, curve: Curves.easeOut));
 
   @override
   void initState() {
     super.initState();
-    _controller.forward();
-    // Read context after the first frame — safe place to touch Provider.
+    _c.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
   }
 
   Future<void> _boot() async {
-    // Guarantee the brand moment is seen, then restore any session.
-    await Future.delayed(const Duration(milliseconds: 1200));
+    await Future.delayed(const Duration(milliseconds: 1650));
     if (!mounted) return;
     await context.read<AuthProvider>().bootstrap();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _c.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.light,
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: SafeArea(
-          child: Stack(
-            children: [
-              Center(
-                child: FadeTransition(
-                  opacity: _fade,
-                  child: ScaleTransition(
-                    scale: _scale,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const AppLogo.mark(size: 108),
-                        const SizedBox(height: AppSpacing.xxl),
-                        Text(
-                          'MovIO',
-                          style: AppTypography.displayLg.copyWith(
-                            color: AppColors.onBrand,
-                            fontSize: 36,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Smart campus transport · FUTA',
-                          style: AppTypography.bodyMd.copyWith(color: AppColors.brand100),
-                        ),
-                      ],
+          child: Center(
+            child: AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MovioMark(
+                      size: 116,
+                      showBackground: false,
+                      strokeColor: AppColors.onBrand,
+                      progress: _draw.value,
                     ),
-                  ),
-                ),
-              ),
-              const Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: AppSpacing.xxxl),
-                  child: SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      valueColor: AlwaysStoppedAnimation(AppColors.onBrand),
+                    const SizedBox(height: AppSpacing.xxl),
+                    Opacity(
+                      opacity: _text.value,
+                      child: Transform.translate(
+                        offset: Offset(0, 12 * (1 - _text.value)),
+                        child: Column(
+                          children: [
+                            Text(
+                              'MovIO',
+                              style: AppTypography.displayLg.copyWith(
+                                color: AppColors.onBrand,
+                                fontSize: 40,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Smart campus transport',
+                              style: AppTypography.bodyMd.copyWith(color: AppColors.brand100),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            ],
+                  ],
+                );
+              },
+            ),
           ),
         ),
+      ),
       ),
     );
   }

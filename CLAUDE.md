@@ -14,6 +14,7 @@ Everything above this line is pulled in automatically from `AGENTS.md` — that 
 - **Every claim about the system's behavior should be grounded in something actually run or verified in-session** (a command executed, a file checked, a test passed) rather than asserted from confidence alone - this project has a habit of catching things this way (bcrypt's native build failing, a fake seed password hash being misleading) and it's worth keeping up.
 - **Update `docs/AGENTS.md`'s "Where things stand" and "Open items" sections before ending a session** - that's what lets the next session, in this tool or any other, resume without re-deriving state or re-asking questions already answered.
 - **save drafted plan** - when the engineer agrees to a plan, you save the plan to the .plan folder, when you're done, you remove it. This is to ensure that we don't loose an approved plan execution midway because of anything.
+- **Build to impress, without killing performance** - Impressing users is one important thing to consider without compromising performance, especially on the mobile aspect.
 
 ## Claude-Code-specific notes only
 

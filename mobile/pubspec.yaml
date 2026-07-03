@@ -133,5 +133,5 @@ flutter_launcher_icons:
   ios: false
   image_path: assets/images/movio-icon.png
   adaptive_icon_background: "#0f7a52"
-  adaptive_icon_foreground: assets/images/movio-icon.png
+  adaptive_icon_foreground: assets/images/movio-icon-foreground.png
   min_sdk_android: 26

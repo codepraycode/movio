@@ -35,21 +35,26 @@ class Validators {
     return null;
   }
 
-  /// Matric number is the student's identity. The backend currently doesn't
-  /// enforce it (the check is commented out in auth.service.ts), so we require
-  /// it here — the student app should never create a matric-less student.
+  static final _matricRegex = RegExp(r'^[A-Z]{3}/\d{2}/\d{4}$');
+
+  /// Matric number is the student's identity, masked to the FUTA `ABC/00/0000`
+  /// pattern by [MatricInputFormatter]. The backend doesn't enforce it (the
+  /// check is commented out in auth.service.ts), so we require the full pattern
+  /// here — the student app should never create a matric-less student.
   static String? matricNo(String? value) {
-    final v = value?.trim() ?? '';
+    final v = value?.trim().toUpperCase() ?? '';
     if (v.isEmpty) return 'Matric number is required';
-    if (v.length < 3) return 'Enter your full matric number';
+    if (!_matricRegex.hasMatch(v)) return 'Use the format ABC/00/0000';
     return null;
   }
 
-  /// Phone is optional; validate only if the user typed something.
-  static String? optionalPhone(String? value) {
-    final v = value?.trim() ?? '';
-    if (v.isEmpty) return null;
-    if (v.length < 7) return 'Enter a valid phone number';
+  /// Nigerian mobile, optional. The +234 prefix lives outside the field; here we
+  /// just check the local part is a full 10 digits once anything is entered.
+  static String? nigerianPhone(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp('[^0-9]'), '');
+    if (digits.isEmpty) return null; // optional
+    final local = digits.startsWith('0') ? digits.substring(1) : digits;
+    if (local.length != 10) return 'Enter a valid 10-digit number';
     return null;
   }
 }

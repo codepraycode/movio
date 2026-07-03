@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/utils/input_formatters.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/entrance.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../state/auth_provider.dart';
 import '../widgets/auth_scaffold.dart';
@@ -40,6 +42,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
+    // Build the E.164 phone (+234…) only if the student entered one.
+    final local = nigerianLocalDigits(_phone.text);
+    final phone = local.isEmpty ? null : '+234$local';
+
     final auth = context.read<AuthProvider>();
     final ok = await auth.register(
       matricNo: _matricNo.text,
@@ -47,7 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       lastName: _lastName.text,
       email: _email.text,
       password: _password.text,
-      phone: _phone.text,
+      phone: phone,
     );
 
     if (!mounted) return;
@@ -61,50 +67,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final submitting = context.watch<AuthProvider>().submitting;
 
+    // Small helper to stagger each field's entrance.
+    var step = 0;
+    Widget field(Widget child) {
+      final w = Entrance(delay: Duration(milliseconds: 60 * step), child: child);
+      step++;
+      return w;
+    }
+
     return AuthScaffold(
       title: 'Create your account',
       subtitle: 'Register with your FUTA student details',
+      onBack: submitting ? null : () => Navigator.of(context).pop(),
       form: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    label: 'First name',
-                    controller: _firstName,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.next,
-                    validator: (v) => Validators.required(v, field: 'First name'),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(
-                  child: AppTextField(
-                    label: 'Last name',
-                    controller: _lastName,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.next,
-                    validator: (v) => Validators.required(v, field: 'Last name'),
-                  ),
-                ),
-              ],
-            ),
+            field(AppTextField(
+              label: 'First name',
+              controller: _firstName,
+              prefixIcon: Icons.person_outline,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              validator: (v) => Validators.required(v, field: 'First name'),
+            )),
             const SizedBox(height: AppSpacing.xl),
-            AppTextField(
+            field(AppTextField(
+              label: 'Last name',
+              controller: _lastName,
+              prefixIcon: Icons.person_outline,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              validator: (v) => Validators.required(v, field: 'Last name'),
+            )),
+            const SizedBox(height: AppSpacing.xl),
+            field(AppTextField(
               label: 'Matric number',
               controller: _matricNo,
-              hint: 'e.g. CSC/18/1234',
+              hint: 'ABC/00/0000',
               prefixIcon: Icons.badge_outlined,
               textCapitalization: TextCapitalization.characters,
               textInputAction: TextInputAction.next,
+              inputFormatters: [MatricInputFormatter()],
               validator: Validators.matricNo,
-            ),
+            )),
             const SizedBox(height: AppSpacing.xl),
-            AppTextField(
+            field(AppTextField(
               label: 'Email',
               controller: _email,
               hint: 'you@futa.edu.ng',
@@ -112,19 +121,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               validator: Validators.email,
-            ),
+            )),
             const SizedBox(height: AppSpacing.xl),
-            AppTextField(
+            field(AppTextField(
               label: 'Phone (optional)',
               controller: _phone,
-              hint: '0803 000 0000',
-              prefixIcon: Icons.phone_outlined,
+              hint: '803 123 4567',
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              validator: Validators.optionalPhone,
-            ),
+              inputFormatters: [NigerianPhoneFormatter()],
+              validator: Validators.nigerianPhone,
+              prefix: Padding(
+                padding: const EdgeInsets.only(left: 16, right: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('🇳🇬', style: AppTypography.bodyLg),
+                    const SizedBox(width: 6),
+                    Text('+234', style: AppTypography.dataMd),
+                    const SizedBox(width: 10),
+                    Container(width: 1, height: 22, color: AppColors.line),
+                  ],
+                ),
+              ),
+            )),
             const SizedBox(height: AppSpacing.xl),
-            AppTextField(
+            field(AppTextField(
               label: 'Password',
               controller: _password,
               hint: 'At least 6 characters',
@@ -132,9 +154,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               obscure: true,
               textInputAction: TextInputAction.next,
               validator: Validators.password,
-            ),
+            )),
             const SizedBox(height: AppSpacing.xl),
-            AppTextField(
+            field(AppTextField(
               label: 'Confirm password',
               controller: _confirm,
               hint: 'Re-enter your password',
@@ -143,13 +165,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textInputAction: TextInputAction.done,
               validator: (v) => Validators.confirmPassword(v, _password.text),
               onFieldSubmitted: (_) => _submit(),
-            ),
+            )),
             const SizedBox(height: AppSpacing.xxl),
-            PrimaryButton(
+            field(PrimaryButton(
               label: 'Create account',
               loading: submitting,
               onPressed: _submit,
-            ),
+            )),
           ],
         ),
       ),

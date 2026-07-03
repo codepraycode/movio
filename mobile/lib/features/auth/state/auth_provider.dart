@@ -33,12 +33,14 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.unknown;
   AuthUser? _user;
   String? _token;
+  bool _onboarded = false; // has the intro been seen on this device?
   bool _submitting = false; // a login/register request is in flight
   String? _errorMessage; // last failure, for the screen to surface
 
   AuthStatus get status => _status;
   AuthUser? get user => _user;
   String? get token => _token;
+  bool get onboarded => _onboarded;
   bool get submitting => _submitting;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
@@ -46,6 +48,7 @@ class AuthProvider extends ChangeNotifier {
   /// Read any persisted session at startup. Because the JWT lives in secure
   /// storage, a returning student skips the login screen entirely.
   Future<void> bootstrap() async {
+    _onboarded = await _storage.readOnboarded();
     final token = await _storage.readToken();
     final userJson = await _storage.readUserJson();
     if (token != null && token.isNotEmpty && userJson != null) {
@@ -55,6 +58,14 @@ class AuthProvider extends ChangeNotifier {
     } else {
       _status = AuthStatus.unauthenticated;
     }
+    notifyListeners();
+  }
+
+  /// Called when the student finishes (or skips) the intro. Persisted so it
+  /// never replays, then routes on to login.
+  Future<void> completeOnboarding() async {
+    _onboarded = true;
+    await _storage.setOnboarded();
     notifyListeners();
   }
 

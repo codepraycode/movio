@@ -21,6 +21,7 @@ class AppTextField extends StatefulWidget {
     this.textInputAction,
     this.validator,
     this.prefixIcon,
+    this.prefix,
     this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
     this.onFieldSubmitted,
@@ -35,6 +36,9 @@ class AppTextField extends StatefulWidget {
   final TextInputAction? textInputAction;
   final String? Function(String?)? validator;
   final IconData? prefixIcon;
+
+  /// Inline widget shown before the text (e.g. a "+234" country prefix).
+  final Widget? prefix;
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
   final void Function(String)? onFieldSubmitted;
@@ -68,9 +72,15 @@ class _AppTextFieldState extends State<AppTextField> {
           style: AppTypography.bodyLg,
           decoration: InputDecoration(
             hintText: widget.hint,
-            prefixIcon: widget.prefixIcon == null
-                ? null
-                : Icon(widget.prefixIcon, size: 20, color: AppColors.inkFaint),
+            // A supplied prefix widget (e.g. "+234") goes in the always-visible
+            // prefixIcon slot; otherwise fall back to the optional icon.
+            prefixIcon: widget.prefix ??
+                (widget.prefixIcon == null
+                    ? null
+                    : Icon(widget.prefixIcon, size: 20, color: AppColors.inkFaint)),
+            prefixIconConstraints: widget.prefix != null
+                ? const BoxConstraints(minWidth: 0, minHeight: 0)
+                : null,
             suffixIcon: widget.obscure
                 ? IconButton(
                     onPressed: () => setState(() => _obscured = !_obscured),
