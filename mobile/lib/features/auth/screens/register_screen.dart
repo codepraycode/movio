@@ -75,122 +75,124 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return w;
     }
 
-    return AuthScaffold(
-      title: 'Create your account',
-      subtitle: 'Register with your FUTA student details',
-      onBack: submitting ? null : () => Navigator.of(context).pop(),
-      form: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return DoubleBackToExit(
+      child: AuthScaffold(
+        title: 'Create your account',
+        subtitle: 'Register with your FUTA student details',
+        onBack: submitting ? null : () => Navigator.of(context).pop(),
+        form: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              field(AppTextField(
+                label: 'First name',
+                controller: _firstName,
+                prefixIcon: Icons.person_outline,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                validator: (v) => Validators.required(v, field: 'First name'),
+              )),
+              const SizedBox(height: AppSpacing.xl),
+              field(AppTextField(
+                label: 'Last name',
+                controller: _lastName,
+                prefixIcon: Icons.person_outline,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                validator: (v) => Validators.required(v, field: 'Last name'),
+              )),
+              const SizedBox(height: AppSpacing.xl),
+              field(AppTextField(
+                label: 'Matric number',
+                controller: _matricNo,
+                hint: 'ABC/00/0000',
+                prefixIcon: Icons.badge_outlined,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [MatricInputFormatter()],
+                validator: Validators.matricNo,
+              )),
+              const SizedBox(height: AppSpacing.xl),
+              field(AppTextField(
+                label: 'Email',
+                controller: _email,
+                hint: 'you@futa.edu.ng',
+                prefixIcon: Icons.mail_outline,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                validator: Validators.email,
+              )),
+              const SizedBox(height: AppSpacing.xl),
+              field(AppTextField(
+                label: 'Phone (optional)',
+                controller: _phone,
+                hint: '803 123 4567',
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [NigerianPhoneFormatter()],
+                validator: Validators.nigerianPhone,
+                prefix: Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('🇳🇬', style: AppTypography.bodyLg),
+                      const SizedBox(width: 6),
+                      Text('+234', style: AppTypography.dataMd),
+                      const SizedBox(width: 10),
+                      Container(width: 1, height: 22, color: AppColors.line),
+                    ],
+                  ),
+                ),
+              )),
+              const SizedBox(height: AppSpacing.xl),
+              field(AppTextField(
+                label: 'Password',
+                controller: _password,
+                hint: 'At least 6 characters',
+                prefixIcon: Icons.lock_outline,
+                obscure: true,
+                textInputAction: TextInputAction.next,
+                validator: Validators.password,
+              )),
+              const SizedBox(height: AppSpacing.xl),
+              field(AppTextField(
+                label: 'Confirm password',
+                controller: _confirm,
+                hint: 'Re-enter your password',
+                prefixIcon: Icons.lock_outline,
+                obscure: true,
+                textInputAction: TextInputAction.done,
+                validator: (v) => Validators.confirmPassword(v, _password.text),
+                onFieldSubmitted: (_) => _submit(),
+              )),
+              const SizedBox(height: AppSpacing.xxl),
+              field(PrimaryButton(
+                label: 'Create account',
+                loading: submitting,
+                onPressed: _submit,
+              )),
+            ],
+          ),
+        ),
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            field(AppTextField(
-              label: 'First name',
-              controller: _firstName,
-              prefixIcon: Icons.person_outline,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.next,
-              validator: (v) => Validators.required(v, field: 'First name'),
-            )),
-            const SizedBox(height: AppSpacing.xl),
-            field(AppTextField(
-              label: 'Last name',
-              controller: _lastName,
-              prefixIcon: Icons.person_outline,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.next,
-              validator: (v) => Validators.required(v, field: 'Last name'),
-            )),
-            const SizedBox(height: AppSpacing.xl),
-            field(AppTextField(
-              label: 'Matric number',
-              controller: _matricNo,
-              hint: 'ABC/00/0000',
-              prefixIcon: Icons.badge_outlined,
-              textCapitalization: TextCapitalization.characters,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [MatricInputFormatter()],
-              validator: Validators.matricNo,
-            )),
-            const SizedBox(height: AppSpacing.xl),
-            field(AppTextField(
-              label: 'Email',
-              controller: _email,
-              hint: 'you@futa.edu.ng',
-              prefixIcon: Icons.mail_outline,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: Validators.email,
-            )),
-            const SizedBox(height: AppSpacing.xl),
-            field(AppTextField(
-              label: 'Phone (optional)',
-              controller: _phone,
-              hint: '803 123 4567',
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [NigerianPhoneFormatter()],
-              validator: Validators.nigerianPhone,
-              prefix: Padding(
-                padding: const EdgeInsets.only(left: 16, right: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('🇳🇬', style: AppTypography.bodyLg),
-                    const SizedBox(width: 6),
-                    Text('+234', style: AppTypography.dataMd),
-                    const SizedBox(width: 10),
-                    Container(width: 1, height: 22, color: AppColors.line),
-                  ],
+            Text('Already have an account?', style: AppTypography.bodyMd),
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.of(context).pop(),
+              child: Text(
+                'Sign in',
+                style: AppTypography.button.copyWith(
+                  fontSize: 14,
+                  color: AppColors.brand700,
                 ),
               ),
-            )),
-            const SizedBox(height: AppSpacing.xl),
-            field(AppTextField(
-              label: 'Password',
-              controller: _password,
-              hint: 'At least 6 characters',
-              prefixIcon: Icons.lock_outline,
-              obscure: true,
-              textInputAction: TextInputAction.next,
-              validator: Validators.password,
-            )),
-            const SizedBox(height: AppSpacing.xl),
-            field(AppTextField(
-              label: 'Confirm password',
-              controller: _confirm,
-              hint: 'Re-enter your password',
-              prefixIcon: Icons.lock_outline,
-              obscure: true,
-              textInputAction: TextInputAction.done,
-              validator: (v) => Validators.confirmPassword(v, _password.text),
-              onFieldSubmitted: (_) => _submit(),
-            )),
-            const SizedBox(height: AppSpacing.xxl),
-            field(PrimaryButton(
-              label: 'Create account',
-              loading: submitting,
-              onPressed: _submit,
-            )),
+            ),
           ],
         ),
-      ),
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('Already have an account?', style: AppTypography.bodyMd),
-          TextButton(
-            onPressed: submitting ? null : () => Navigator.of(context).pop(),
-            child: Text(
-              'Sign in',
-              style: AppTypography.button.copyWith(
-                fontSize: 14,
-                color: AppColors.brand700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+    )
   }
 }

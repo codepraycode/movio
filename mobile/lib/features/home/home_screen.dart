@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_system_ui.dart';
 import '../../core/theme/app_typography.dart';
+import '../../shared/widgets/app_background.dart';
+import '../../shared/widgets/double_back_to_exit.dart';
+import '../../shared/widgets/entrance.dart';
 import '../../shared/widgets/loaders/shimmer_box.dart';
 import '../auth/state/auth_provider.dart';
 
-/// Placeholder landing shown once authenticated. Its job for PSD-101 is to prove
-/// the login/register → main-app hand-off and session persistence. The real home
-/// (live map, wallet, NFC profile) lands in later MOB tickets — feature tiles are
-/// marked "Soon" rather than faked.
+/// Home landing shown once authenticated. Proves the login/register → main-app
+/// hand-off and session persistence. Feature tiles marked "Soon" rather than faked.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -20,51 +23,81 @@ class HomeScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
 
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: AppSpacing.page,
-        title: const Text('MovIO'),
-        actions: [
-          IconButton(
-            tooltip: 'Log out',
-            onPressed: () => context.read<AuthProvider>().logout(),
-            icon: const Icon(Icons.logout, color: AppColors.inkMuted),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.dark,
+      child: DoubleBackToExit(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            titleSpacing: AppSpacing.page,
+            title: const Text('MovIO'),
+            actions: [
+              IconButton(
+                tooltip: 'Log out',
+                onPressed: () => context.read<AuthProvider>().logout(),
+                icon: const Icon(Icons.logout, color: AppColors.inkMuted),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page,
-          AppSpacing.sm,
-          AppSpacing.page,
-          AppSpacing.xxxl,
+          body: AppBackground(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                AppSpacing.sm,
+                AppSpacing.page,
+                AppSpacing.xxxl,
+              ),
+              children: [
+                Entrance(
+                  child: _GreetingCard(
+                    name: user?.firstName ?? 'there',
+                    matricNo: user?.matricNo,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Entrance(
+                  delay: const Duration(milliseconds: 60),
+                  child: const _WalletPreviewCard(),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                Entrance(
+                  delay: const Duration(milliseconds: 120),
+                  child: Text('Coming next', style: AppTypography.titleMd),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Entrance(
+                  delay: const Duration(milliseconds: 180),
+                  child: const _FeatureTile(
+                    icon: Icons.map_outlined,
+                    title: 'Live shuttle map',
+                    subtitle: 'See active shuttles and ETAs in real time',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Entrance(
+                  delay: const Duration(milliseconds: 240),
+                  child: const _FeatureTile(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Transit Credit wallet',
+                    subtitle: 'Top up and pay for boarding without cash',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Entrance(
+                  delay: const Duration(milliseconds: 300),
+                  child: const _FeatureTile(
+                    icon: Icons.nfc,
+                    title: 'NFC boarding profile',
+                    subtitle: 'Link your tap-to-board card',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        children: [
-          _GreetingCard(name: user?.firstName ?? 'there', matricNo: user?.matricNo),
-          const SizedBox(height: AppSpacing.xl),
-          const _WalletPreviewCard(),
-          const SizedBox(height: AppSpacing.xxl),
-          Text('Coming next', style: AppTypography.titleMd),
-          const SizedBox(height: AppSpacing.md),
-          const _FeatureTile(
-            icon: Icons.map_outlined,
-            title: 'Live shuttle map',
-            subtitle: 'See active shuttles and ETAs in real time',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _FeatureTile(
-            icon: Icons.account_balance_wallet_outlined,
-            title: 'Transit Credit wallet',
-            subtitle: 'Top up and pay for boarding without cash',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _FeatureTile(
-            icon: Icons.nfc,
-            title: 'NFC boarding profile',
-            subtitle: 'Link your tap-to-board card',
-          ),
-        ],
       ),
     );
   }
