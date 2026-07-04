@@ -8,6 +8,7 @@ import '../../../shared/utils/input_formatters.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/double_back_to_exit.dart';
 import '../../../shared/widgets/entrance.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../state/auth_provider.dart';
@@ -192,7 +193,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ],
         ),
-      );
-    )
+      ),
+    );
   }
 }

@@ -30,7 +30,9 @@ fi
 BASE_URL="http://${IP}:${PORT}${API_PATH}"
 
 # --- 2. Find the first connected Android device ----------------------------
-DEVICE="$(flutter devices --machine 2>/dev/null | python3 -c '
+# Emit "id<TAB>name" so we can show the friendly name (e.g. "itel A665L")
+# alongside the serial the tooling actually targets.
+DEVICE_LINE="$(flutter devices --machine 2>/dev/null | python3 -c '
 import json, sys
 try:
     devices = json.load(sys.stdin)
@@ -38,13 +40,21 @@ except Exception:
     devices = []
 for d in devices:
     if str(d.get("targetPlatform", "")).startswith("android"):
-        print(d["id"]); break
+        print("{}\t{}".format(d["id"], d.get("name") or d["id"])); break
 ' 2>/dev/null || true)"
+DEVICE="${DEVICE_LINE%%$'\t'*}"
+DEVICE_NAME="${DEVICE_LINE#*$'\t'}"
 
-# Fallback: ask adb directly if the flutter query came up empty.
+# Fallback: ask adb directly if the flutter query came up empty. Use the phone's
+# advertised model (ro.product.model) as the friendly name.
 if [ -z "${DEVICE:-}" ] && command -v adb >/dev/null 2>&1; then
   DEVICE="$(adb devices 2>/dev/null | awk '/\tdevice$/{print $1; exit}')"
+  if [ -n "${DEVICE:-}" ]; then
+    DEVICE_NAME="$(adb -s "$DEVICE" shell getprop ro.product.model 2>/dev/null | tr -d '\r' || true)"
+  fi
 fi
+# Fall back to the serial if no friendly name was resolved.
+DEVICE_NAME="${DEVICE_NAME:-$DEVICE}"
 
 if [ -z "${DEVICE:-}" ]; then
   echo "✗ No Android device detected."
@@ -62,7 +72,7 @@ fi
 
 # --- 4. Launch -------------------------------------------------------------
 echo "──────────────────────────────────────────────"
-echo "  Device   : ${DEVICE}"
+echo "  Device   : ${DEVICE_NAME} (${DEVICE})"
 echo "  Backend  : ${BASE_URL}"
 echo "  Health   : ${BACKEND}"
 echo "──────────────────────────────────────────────"

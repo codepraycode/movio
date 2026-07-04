@@ -13,6 +13,11 @@ class AppSnackbar {
   static void error(BuildContext context, String message) =>
       _show(context, message, AppColors.error, Icons.error_outline);
 
+  /// Neutral, non-alarming notice (e.g. "coming soon"). Dark ink so it reads as
+  /// informational rather than success/failure.
+  static void info(BuildContext context, String message) =>
+      _show(context, message, AppColors.ink, Icons.info_outline);
+
   static void _show(BuildContext context, String message, Color bg, IconData icon) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
