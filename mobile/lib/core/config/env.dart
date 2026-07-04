@@ -19,6 +19,14 @@ class Env {
     'API_BASE_URL',
     defaultValue: _defaultBaseUrl,
   );
+
+  /// Origin the Socket.io server listens on — the same host/port as the REST API
+  /// but WITHOUT the `/api/v1` path (Socket.io mounts at the server root). Derived
+  /// so there's a single source of truth for the backend address.
+  static String get socketUrl {
+    final marker = apiBaseUrl.indexOf('/api');
+    return marker == -1 ? apiBaseUrl : apiBaseUrl.substring(0, marker);
+  }
 }
 
 /// Backend REST endpoints, relative to [Env.apiBaseUrl]. Centralised so a path
