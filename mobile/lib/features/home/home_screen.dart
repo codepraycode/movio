@@ -13,6 +13,8 @@ import '../../shared/widgets/double_back_to_exit.dart';
 import '../../shared/widgets/entrance.dart';
 import '../../shared/widgets/loaders/shimmer_box.dart';
 import '../auth/state/auth_provider.dart';
+import '../nfc/data/nfc_capability_service.dart';
+import '../nfc/screens/nfc_setup_screen.dart';
 import '../tracking/screens/live_map_screen.dart';
 import '../wallet/data/wallet_repository.dart';
 
@@ -407,9 +409,26 @@ class _HeroButton extends StatelessWidget {
 
 /// The key everyday action. Boarding is a tap-to-pay gesture: hold the phone to
 /// the shuttle's NFC reader and 1 credit is deducted automatically. The reader
-/// hardware/flow isn't built yet, so this is honestly tagged "Soon".
+/// flow ships with the TapTrace hardware; until then this card routes into the
+/// NFC/HCE setup flow (PSD-104): first tap runs setup, later taps open status.
 class _BoardTripCard extends StatelessWidget {
   const _BoardTripCard();
+
+  Future<void> _open(BuildContext context) async {
+    HapticFeedback.selectionClick();
+    // Already set up? Reopen as a status/re-check screen instead of setup.
+    final setupDone = await NfcCapabilityService().isSetupDone();
+    if (!context.mounted) return;
+    final justFinished = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => NfcSetupScreen(statusMode: setupDone),
+      ),
+    );
+    if (justFinished == true && context.mounted) {
+      AppSnackbar.success(
+          context, 'You’re set — tap-to-board launches with TapTrace');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -418,7 +437,7 @@ class _BoardTripCard extends StatelessWidget {
       borderRadius: AppRadius.brLg,
       child: InkWell(
         borderRadius: AppRadius.brLg,
-        onTap: () => _soon(context, 'Tap-to-board'),
+        onTap: () => _open(context),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -442,13 +461,7 @@ class _BoardTripCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text('Board a trip', style: AppTypography.titleMd),
-                        const SizedBox(width: AppSpacing.sm),
-                        const _SoonTag(),
-                      ],
-                    ),
+                    Text('Board a trip', style: AppTypography.titleMd),
                     const SizedBox(height: 3),
                     Text(
                       'Hold your phone to TapTrace — 1 credit is deducted automatically.',
@@ -457,6 +470,9 @@ class _BoardTripCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 22, color: AppColors.brand700),
             ],
           ),
         ),

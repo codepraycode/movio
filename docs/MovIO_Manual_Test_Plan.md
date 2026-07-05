@@ -231,6 +231,21 @@ The same `POST /boarding/authenticate` endpoint now toggles: if the student has 
 
 ---
 
+## 17. NFC / HCE Capability Detection (`PSD-104` / MOB-6)
+
+Home's "Board a trip" card routes into the tap-to-board setup flow: an animated capability scan (flutter_nfc_kit for hardware/toggle + a `movio/nfc` MethodChannel in `MainActivity.kt` for the `android.hardware.nfc.hce` system feature). A ready phone finishes setup (flag persisted in secure storage); later taps reopen the screen in status mode. Widget tests cover all four readiness verdicts with injected probes (`test/nfc_setup_screen_test.dart`); on-device rows below need real hardware.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| NFC-01 | Phone **with** NFC, toggle ON | Home → tap "Board a trip" | Scan animation plays, then reports `NFC available — HCE mode supported`, breakdown rows all green, "Finish setup" shown | | |
+| NFC-02 | NFC-01 done, "Finish setup" tapped | Return to Home, tap "Board a trip" again | Success snackbar after finish; second open shows **status mode** ("Tap-to-board status", "Done" button) — flag persisted across app restarts | | |
+| NFC-03 | Phone with NFC, toggle OFF | Tap "Board a trip" | Reports NFC off (amber), "Turn on NFC" opens system NFC settings | | |
+| NFC-04 | From NFC-03, enable NFC in settings | Return to the app (don't touch anything) | Screen re-scans automatically on resume and flips to the ready state | | |
+| NFC-05 | Phone **without** NFC | Tap "Board a trip" | Reports `NFC not available — physical card required` gracefully — no crash, "Got it" exits, rest of the app unaffected | | |
+| NFC-06 | Any phone | On the result screen, tap "Run the check again" | Scan re-runs and lands on the same (correct) verdict | | |
+
+---
+
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
 
 | Category | Total Cases | Passed | Failed | Notes |
