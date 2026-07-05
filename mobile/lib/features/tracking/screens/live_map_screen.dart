@@ -144,8 +144,15 @@ class _LiveMapScreenState extends State<LiveMapScreen>
   // Drives both marker interpolation and the selected-pin pulse.
   late final AnimationController _ticker;
 
-  // Akure / FUTA fallback until the first vehicle position arrives.
-  static const LatLng _fallbackCenter = LatLng(7.3025, 5.1400);
+  // Southgate — where the camera starts.
+  static const LatLng _southgateCenter = LatLng(7.303739, 5.138726);
+
+  // FUTA campus fence — the camera is hard-locked inside this box (see
+  // cameraConstraint below). Edit these two corners to widen/narrow it.
+  final LatLngBounds _futaBounds = LatLngBounds(
+    const LatLng(7.31914, 5.15525), // NE corner - Top
+    const LatLng(7.28887, 5.10894), // SW corner - Bottom
+  );
 
   @override
   void initState() {
@@ -445,16 +452,28 @@ class _LiveMapScreenState extends State<LiveMapScreen>
   }
 
   Widget _buildMap() {
-    final initialCenter =
-        _tracks.isNotEmpty ? _tracks.values.first.target : _fallbackCenter;
-
     return FlutterMap(
       mapController: _mapController,
       options: MapOptions(
-        initialCenter: initialCenter,
-        initialZoom: 15.0,
-        maxZoom: 18.0,
-        minZoom: 11.0,
+        // Camera always opens on Southgate; _maybeFitAll re-frames onto the
+        // vehicles once positions arrive (all of which are on campus anyway).
+        initialCenter: _southgateCenter,
+        initialZoom: 18.5,
+        // IMPORTANT: keep minZoom ≥ ~15. With the hard-contain fence below, a
+        // lower minZoom lets the viewport outgrow the FUTA bounds and trips
+        // flutter_map's "MapCamera is no longer within the cameraConstraint"
+        // assertion. If that assertion ever fires, raise minZoom slightly —
+        // don't loosen the constraint.
+        minZoom: 17.0,
+        maxZoom: 19.0,
+        // Hard fence: the entire visible area is kept inside FUTA — this is a
+        // campus map, not a world map, so Akure/Ondo beyond it is unreachable.
+        cameraConstraint: CameraConstraint.contain(bounds: _futaBounds),
+        // Pan + pinch/double-tap zoom stay enabled; rotation is disabled so
+        // the campus keeps one fixed orientation.
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+        ),
         backgroundColor: const Color(0xFFEAE7E1),
         onTap: (_, _) => _deselect(),
       ),
