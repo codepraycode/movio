@@ -36,4 +36,10 @@ class ApiRoutes {
 
   static const String register = '/auth/register';
   static const String login = '/auth/login';
+
+  /// All currently active trips with their latest known location (JWT-required).
+  static const String trackingActive = '/tracking/active';
+
+  /// The logged-in student's own transit wallet balance (JWT-required).
+  static const String wallet = '/wallet';
 }

@@ -48,6 +48,48 @@ export async function insertCreditTransaction(
     );
 }
 
+export type OpenBoardingEvent = Pick<BoardingEvent, 'event_id' | 'boarded_at'>;
+
+/** The student's un-closed boarding event on this trip, if they're currently aboard. */
+export async function findOpenBoardingEvent(
+    tripId: string,
+    studentId: string
+): Promise<OpenBoardingEvent | undefined> {
+    const result = await query<OpenBoardingEvent>(
+        `SELECT event_id, boarded_at
+         FROM boarding_events
+         WHERE trip_id = $1 AND student_id = $2 AND alighted_at IS NULL
+         ORDER BY boarded_at DESC
+         LIMIT 1`,
+        [tripId, studentId]
+    );
+    return result.rows[0];
+}
+
+export type ClosedBoardingEvent = Pick<BoardingEvent, 'event_id' | 'alighted_at'>;
+
+/** Tap-out: closes an open boarding event. No wallet involvement - fare is flat per boarding. */
+export async function closeBoardingEvent(eventId: string): Promise<ClosedBoardingEvent> {
+    const result = await query<ClosedBoardingEvent>(
+        `UPDATE boarding_events SET alighted_at = now()
+         WHERE event_id = $1
+         RETURNING event_id, alighted_at`,
+        [eventId]
+    );
+    return result.rows[0];
+}
+
+/** How many students are aboard right now (boarded, not yet alighted). */
+export async function countOnboard(tripId: string): Promise<number> {
+    const result = await query<{ count: number }>(
+        `SELECT COUNT(*)::int AS count
+         FROM boarding_events
+         WHERE trip_id = $1 AND alighted_at IS NULL`,
+        [tripId]
+    );
+    return result.rows[0].count;
+}
+
 export type NewBoardingEvent = Pick<BoardingEvent, 'event_id' | 'boarded_at'>;
 
 export async function insertBoardingEvent(

@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS boarding_events (
     student_id    UUID NOT NULL REFERENCES users(user_id),
     credential_id UUID NOT NULL REFERENCES nfc_credentials(credential_id),
     boarded_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    alighted_at   TIMESTAMPTZ, -- NULL while aboard; set on tap-out, or for everyone still aboard when the trip ends
     latitude      DECIMAL(10,8),
     longitude     DECIMAL(11,8)
 );

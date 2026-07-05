@@ -30,8 +30,14 @@ export async function findTripById(tripId: string): Promise<Trip | undefined> {
 }
 
 export async function endTrip(tripId: string): Promise<Trip> {
+    // Ending a trip also closes the boarding session of anyone still aboard
+    // (students who never tapped out) - one statement so the two can't diverge.
     const result = await query<Trip>(
-        `UPDATE trips SET status = 'completed', end_time = now() WHERE trip_id = $1 RETURNING *`,
+        `WITH closed AS (
+            UPDATE boarding_events SET alighted_at = now()
+            WHERE trip_id = $1 AND alighted_at IS NULL
+        )
+        UPDATE trips SET status = 'completed', end_time = now() WHERE trip_id = $1 RETURNING *`,
         [tripId]
     );
     return result.rows[0];
@@ -48,7 +54,8 @@ export async function listTripsWithPassengerCounts(): Promise<TripMonitorRow[]> 
             v.plate_number, v.vehicle_type, v.capacity,
             r.route_name,
             u.first_name AS driver_first_name, u.last_name AS driver_last_name,
-            COUNT(be.event_id)::int AS passenger_count
+            -- Active trips: students aboard right now. Completed trips: total riders carried.
+            COUNT(be.event_id) FILTER (WHERE t.status <> 'active' OR be.alighted_at IS NULL)::int AS passenger_count
         FROM trips t
         JOIN vehicles v ON v.vehicle_id = t.vehicle_id
         JOIN users u ON u.user_id = t.driver_id

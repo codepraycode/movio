@@ -7,6 +7,8 @@ import 'core/theme/app_system_ui.dart';
 import 'features/auth/state/auth_provider.dart';
 
 void main() {
+  // SystemChrome talks over a platform channel, so the binding must exist first.
+  WidgetsFlutterBinding.ensureInitialized();
   // Edge-to-edge: take over the entire screen, including status/nav bars.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   // Default: light status bar with light icons (each screen can override via AnnotatedRegion).

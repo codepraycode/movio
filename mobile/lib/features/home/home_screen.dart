@@ -12,89 +12,175 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/double_back_to_exit.dart';
 import '../../shared/widgets/entrance.dart';
 import '../../shared/widgets/loaders/shimmer_box.dart';
-import '../auth/data/auth_models.dart';
 import '../auth/state/auth_provider.dart';
+import '../tracking/screens/live_map_screen.dart';
+import '../wallet/data/wallet_repository.dart';
 
-/// Home landing shown once authenticated. Proves the login/register → main-app
-/// hand-off and session persistence.
+/// Home landing shown once authenticated. The student's transit hub: how much
+/// Transit Credit they hold, boarding, spend history, reporting, and a live view
+/// of shuttles moving on campus.
 ///
-/// Honesty note (per project rules): nothing here is faked. The wallet balance is
-/// a shimmer placeholder until the wallet endpoint is wired; every action that has
-/// no backend/mobile flow yet is tagged "Soon" and tells the student so on tap,
-/// rather than pretending to work.
-class HomeScreen extends StatelessWidget {
+/// Honesty note (project rule): Transit Credit is a *count of trips*, not money —
+/// 1 credit = 1 boarding. The balance and the boarding/history/report flows have
+/// no mobile endpoint yet, so they read as "Soon" and never show invented data.
+/// The live map is real and wired to `GET /tracking/active` + the socket stream.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ScrollController _scroll = ScrollController();
+  final WalletRepository _walletRepo = WalletRepository();
+
+  // Drives the status-bar scrim: transparent at the very top (hero/glow shows
+  // through), solid paper + hairline once the content starts sliding under it.
+  bool _scrolled = false;
+
+  // Real Transit Credit balance (PSD-103). null while first loading; the card
+  // shimmers when both are null, shows a dash on error, else the count.
+  int? _credits;
+  String? _walletError;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      final scrolled = _scroll.offset > 6;
+      if (scrolled != _scrolled) setState(() => _scrolled = scrolled);
+    });
+    _loadWallet();
+  }
+
+  /// Fetches the live balance. Pull-to-refresh re-runs this — that's how the
+  /// count drops after a simulated boarding deducts a credit (PSD-103 AC).
+  Future<void> _loadWallet() async {
+    final token = context.read<AuthProvider>().token;
+    if (token == null) return;
+    try {
+      final wallet = await _walletRepo.myWallet(token);
+      if (!mounted) return;
+      setState(() {
+        _credits = wallet.balanceCredits;
+        _walletError = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _walletError = 'Couldn’t load balance');
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final firstName =
+        (user?.firstName.isNotEmpty ?? false) ? user!.firstName : 'there';
+    final topInset = MediaQuery.of(context).padding.top;
 
-    // The hero is a dark green gradient, so the status-bar icons go light here.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: AppSystemUi.light,
+      value: AppSystemUi.dark,
       child: DoubleBackToExit(
         child: Scaffold(
           backgroundColor: AppColors.paper,
           body: AppBackground(
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _Hero(user: user)),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
+            child: Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: _loadWallet,
+                  color: AppColors.brand600,
+                  backgroundColor: AppColors.surface,
+                  child: ListView(
+                  controller: _scroll,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.page,
-                    AppSpacing.xxl,
+                    topInset + AppSpacing.md,
                     AppSpacing.page,
                     AppSpacing.xxxl,
                   ),
-                  sliver: SliverList.list(
-                    children: [
-                      Entrance(
-                        delay: const Duration(milliseconds: 120),
-                        child: const _SectionLabel('Quick actions'),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Entrance(
-                        delay: const Duration(milliseconds: 180),
-                        child: const _QuickActions(),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-                      Entrance(
-                        delay: const Duration(milliseconds: 240),
-                        child: const _SustainabilityCard(),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-                      Entrance(
-                        delay: const Duration(milliseconds: 300),
-                        child: const _SectionLabel('Coming next'),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Entrance(
-                        delay: const Duration(milliseconds: 360),
-                        child: const _FeatureTile(
-                          icon: Icons.map_outlined,
-                          title: 'Live shuttle map',
-                          subtitle: 'Track active shuttles and ETAs in real time',
+                  children: [
+                    Entrance(child: _GreetingBar(name: firstName)),
+                  const SizedBox(height: AppSpacing.xl),
+                  Entrance(
+                    delay: const Duration(milliseconds: 60),
+                    child: _TransitCreditCard(
+                      credits: _credits,
+                      error: _walletError,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Entrance(
+                    delay: const Duration(milliseconds: 120),
+                    child: const _BoardTripCard(),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Entrance(
+                    delay: const Duration(milliseconds: 180),
+                    child: const _LiveMapCta(),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Entrance(
+                    delay: const Duration(milliseconds: 240),
+                    child: const Row(
+                      children: [
+                        Expanded(
+                          child: _MiniTile(
+                            icon: Icons.receipt_long_rounded,
+                            title: 'My trips',
+                            subtitle: 'Credits you’ve spent',
+                          ),
+                        ),
+                        SizedBox(width: AppSpacing.lg),
+                        Expanded(
+                          child: _MiniTile(
+                            icon: Icons.flag_outlined,
+                            title: 'Report',
+                            subtitle: 'Tell us what happened',
+                          ),
+                        ),
+                      ],
+                    ),
+                    ),
+                  ],
+                  ),
+                ),
+                // Status-bar scrim — fades in on scroll so the system icons
+                // always sit on a clean, on-brand surface.
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _scrolled ? 1 : 0,
+                      duration: const Duration(milliseconds: 220),
+                      child: Container(
+                        height: topInset,
+                        decoration: BoxDecoration(
+                          color: AppColors.paper,
+                          border: Border(
+                            bottom: BorderSide(
+                              color: AppColors.line.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.ink.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Entrance(
-                        delay: const Duration(milliseconds: 420),
-                        child: const _FeatureTile(
-                          icon: Icons.nfc_rounded,
-                          title: 'NFC boarding profile',
-                          subtitle: 'Link your tap-to-board card for cashless boarding',
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Entrance(
-                        delay: const Duration(milliseconds: 480),
-                        child: const _FeatureTile(
-                          icon: Icons.receipt_long_outlined,
-                          title: 'Trip & payment history',
-                          subtitle: 'Every boarding and top-up in one place',
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -106,15 +192,12 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ─── Hero header ────────────────────────────────────────────────────────────
+// ─── Greeting ────────────────────────────────────────────────────────────────
 
-/// Full-bleed green gradient header that runs under the status bar, carrying the
-/// greeting, the student's identity, and the wallet card. This is the app's
-/// signature surface — the first thing a student sees after signing in.
-class _Hero extends StatelessWidget {
-  const _Hero({required this.user});
+class _GreetingBar extends StatelessWidget {
+  const _GreetingBar({required this.name});
 
-  final AuthUser? user;
+  final String name;
 
   String get _timeGreeting {
     final h = DateTime.now().hour;
@@ -125,149 +208,70 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topInset = MediaQuery.of(context).padding.top;
-    final name = (user?.firstName.isNotEmpty ?? false) ? user!.firstName : 'there';
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        topInset + AppSpacing.lg,
-        AppSpacing.page,
-        AppSpacing.xxl,
-      ),
-      decoration: const BoxDecoration(
-        gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadius.xl),
-          bottomRight: Radius.circular(AppRadius.xl),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x330F7A52),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$_timeGreeting,', style: AppTypography.caption),
+              const SizedBox(height: 2),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.headingLg,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Entrance(
-            child: Row(
-              children: [
-                _Avatar(initials: user?.initials ?? '?'),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$_timeGreeting,',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.brand100,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.headingMd.copyWith(
-                          color: AppColors.onBrand,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _HeroIconButton(
-                  tooltip: 'Log out',
-                  icon: Icons.logout_rounded,
-                  onPressed: () => context.read<AuthProvider>().logout(),
-                ),
-              ],
+        ),
+        Material(
+          color: AppColors.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => context.read<AuthProvider>().logout(),
+            child: Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.line),
+              ),
+              child: const Icon(Icons.logout_rounded,
+                  size: 19, color: AppColors.inkMuted),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
-          Entrance(
-            delay: const Duration(milliseconds: 80),
-            child: _WalletCard(matricNo: user?.matricNo),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.initials});
+// ─── Transit Credit hero ─────────────────────────────────────────────────────
 
-  final String initials;
+/// The centrepiece: the student's Transit Credit balance — a *count of trips*,
+/// not a cash figure (PSD-103). The real balance is fetched from the backend;
+/// while it loads we shimmer, and on failure we show a dash — never a fake count.
+class _TransitCreditCard extends StatelessWidget {
+  const _TransitCreditCard({this.credits, this.error});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      width: 48,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.onBrand.withValues(alpha: 0.18),
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.onBrand.withValues(alpha: 0.35)),
-      ),
-      child: Text(
-        initials.isNotEmpty ? initials : '?',
-        style: AppTypography.titleMd.copyWith(color: AppColors.onBrand),
-      ),
-    );
-  }
-}
-
-class _HeroIconButton extends StatelessWidget {
-  const _HeroIconButton({
-    required this.icon,
-    required this.onPressed,
-    required this.tooltip,
-  });
-
-  final IconData icon;
-  final VoidCallback onPressed;
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.onBrand.withValues(alpha: 0.14),
-      shape: const CircleBorder(),
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        icon: Icon(icon, color: AppColors.onBrand, size: 20),
-      ),
-    );
-  }
-}
-
-/// The wallet centrepiece. A frosted white card lifting off the green hero, with
-/// the balance set in mono to read as real telemetry. The figure itself is a
-/// shimmer placeholder until the wallet endpoint is wired — deliberately not a
-/// made-up number.
-class _WalletCard extends StatelessWidget {
-  const _WalletCard({this.matricNo});
-
-  final String? matricNo;
+  final int? credits;
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.brLg,
+        gradient: AppColors.brandGradient,
+        borderRadius: AppRadius.brXl,
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14101828),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            color: Color(0x2E0F7A52),
+            blurRadius: 28,
+            offset: Offset(0, 12),
           ),
         ],
       ),
@@ -276,66 +280,80 @@ class _WalletCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_balance_wallet_rounded,
-                  color: AppColors.brand600, size: 18),
+              const Icon(Icons.confirmation_number_outlined,
+                  color: AppColors.onBrand, size: 18),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                'Transit Credit',
-                style: AppTypography.label.copyWith(color: AppColors.inkMuted),
+                'TRANSIT CREDIT',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.brand100,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                ),
               ),
               const Spacer(),
-              if (matricNo != null && matricNo!.isNotEmpty)
-                Text(
-                  matricNo!,
-                  style: AppTypography.dataMd.copyWith(
-                    color: AppColors.inkFaint,
-                    fontSize: 12,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.onBrand.withValues(alpha: 0.16),
+                  borderRadius: AppRadius.brSm,
+                ),
+                child: Text(
+                  '1 credit = 1 trip',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.onBrand,
+                    fontSize: 11,
                   ),
                 ),
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
+          // Real balance + unit. Shimmer while first loading; dash on error.
           Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                '₦',
-                style: AppTypography.dataXl.copyWith(
-                  color: AppColors.inkFaint,
-                  fontSize: 22,
+              if (credits != null)
+                Text('$credits',
+                    style: AppTypography.dataXl.copyWith(color: AppColors.onBrand))
+              else if (error != null)
+                Text('—',
+                    style: AppTypography.dataXl.copyWith(color: AppColors.brand100))
+              else
+                ShimmerBox(
+                  width: 58,
+                  height: 40,
+                  radius: 8,
+                  baseColor: AppColors.onBrand.withValues(alpha: 0.22),
+                  highlightColor: AppColors.onBrand.withValues(alpha: 0.42),
+                ),
+              const SizedBox(width: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  credits == 1 ? 'credit' : 'credits',
+                  style: AppTypography.titleMd.copyWith(color: AppColors.brand100),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              const ShimmerBox(width: 130, height: 30, radius: 6),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            'Balance syncs once wallet top-up ships',
-            style: AppTypography.caption.copyWith(color: AppColors.inkFaint),
+            error != null
+                ? 'Pull down to refresh your balance.'
+                : credits == null
+                    ? 'Loading your balance…'
+                    : credits == 0
+                        ? 'No credits left — add some to board.'
+                        : 'Good for $credits ${credits == 1 ? 'trip' : 'trips'} — 1 credit per boarding.',
+            style: AppTypography.caption.copyWith(color: AppColors.brand100),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _WalletAction(
-                  icon: Icons.add_rounded,
-                  label: 'Top up',
-                  filled: true,
-                  onTap: () => _soon(context, 'Wallet top-up'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _WalletAction(
-                  icon: Icons.qr_code_scanner_rounded,
-                  label: 'Pay to board',
-                  filled: false,
-                  onTap: () => _soon(context, 'Tap-to-board'),
-                ),
-              ),
-            ],
+          const SizedBox(height: AppSpacing.xl),
+          _HeroButton(
+            icon: Icons.add_rounded,
+            label: 'Add Transit Credit',
+            onTap: () => _soon(context, 'Adding Transit Credit'),
           ),
         ],
       ),
@@ -343,24 +361,22 @@ class _WalletCard extends StatelessWidget {
   }
 }
 
-class _WalletAction extends StatelessWidget {
-  const _WalletAction({
+/// A full-width light button that sits on the green hero.
+class _HeroButton extends StatelessWidget {
+  const _HeroButton({
     required this.icon,
     required this.label,
-    required this.filled,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final bool filled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final fg = filled ? AppColors.onBrand : AppColors.brand700;
     return Material(
-      color: filled ? AppColors.brand600 : AppColors.brand50,
+      color: AppColors.onBrand,
       borderRadius: AppRadius.brMd,
       child: InkWell(
         borderRadius: AppRadius.brMd,
@@ -370,11 +386,14 @@ class _WalletAction extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: fg),
+              Icon(icon, size: 20, color: AppColors.brand700),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 label,
-                style: AppTypography.label.copyWith(color: fg),
+                style: AppTypography.button.copyWith(
+                  color: AppColors.brand700,
+                  fontSize: 15,
+                ),
               ),
             ],
           ),
@@ -384,49 +403,278 @@ class _WalletAction extends StatelessWidget {
   }
 }
 
-// ─── Quick actions ──────────────────────────────────────────────────────────
+// ─── Board a trip (NFC) ──────────────────────────────────────────────────────
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
+/// The key everyday action. Boarding is a tap-to-pay gesture: hold the phone to
+/// the shuttle's NFC reader and 1 credit is deducted automatically. The reader
+/// hardware/flow isn't built yet, so this is honestly tagged "Soon".
+class _BoardTripCard extends StatelessWidget {
+  const _BoardTripCard();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.nfc_rounded,
-            label: 'Scan\nto board',
-            onTap: () => _soon(context, 'NFC boarding'),
+    return Material(
+      color: AppColors.brand50,
+      borderRadius: AppRadius.brLg,
+      child: InkWell(
+        borderRadius: AppRadius.brLg,
+        onTap: () => _soon(context, 'Tap-to-board'),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.brLg,
+            border: Border.all(color: AppColors.brand200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  borderRadius: AppRadius.brMd,
+                ),
+                child: const Icon(Icons.contactless_rounded,
+                    color: AppColors.onBrand, size: 26),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('Board a trip', style: AppTypography.titleMd),
+                        const SizedBox(width: AppSpacing.sm),
+                        const _SoonTag(),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Hold your phone to TapTrace — 1 credit is deducted automatically.',
+                      style: AppTypography.caption.copyWith(color: AppColors.brand800),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.map_outlined,
-            label: 'Live\nshuttles',
-            onTap: () => _soon(context, 'Live shuttle map'),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.report_problem_outlined,
-            label: 'Report\nan issue',
-            onTap: () => _soon(context, 'Complaints'),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
+// ─── Live map CTA (activated) ────────────────────────────────────────────────
+
+/// The app's signature "wow": a live look at shuttles moving across campus.
+/// Real — on tap it fetches active trips from the backend and opens the live map.
+class _LiveMapCta extends StatefulWidget {
+  const _LiveMapCta();
+
+  @override
+  State<_LiveMapCta> createState() => _LiveMapCtaState();
+}
+
+class _LiveMapCtaState extends State<_LiveMapCta>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  void _openMap() {
+    HapticFeedback.selectionClick();
+    // The campus map loads every active vehicle itself (and shows its own empty
+    // state), so we just open it.
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LiveMapScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppRadius.brLg,
+      child: InkWell(
+        borderRadius: AppRadius.brLg,
+        onTap: _openMap,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.brLg,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.brand700, AppColors.brand900],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x24134E35),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _LivePulse(pulse: _pulse),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'See live movement',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleMd.copyWith(
+                                color: AppColors.onBrand),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        _LiveBadge(pulse: _pulse),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Watch shuttles move across campus in real time.',
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.brand200),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Container(
+                height: 32,
+                width: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.onBrand.withValues(alpha: 0.16),
+                ),
+                child: const Icon(Icons.arrow_forward_rounded,
+                    size: 18, color: AppColors.onBrand),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The radar-style pulsing map glyph on the live CTA.
+class _LivePulse extends StatelessWidget {
+  const _LivePulse({required this.pulse});
+
+  final Animation<double> pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      width: 52,
+      child: AnimatedBuilder(
+        animation: pulse,
+        builder: (context, _) {
+          final t = pulse.value;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 30 + 20 * t,
+                height: 30 + 20 * t,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.brand300.withValues(alpha: (1 - t) * 0.5),
+                ),
+              ),
+              Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.onBrand.withValues(alpha: 0.14),
+                ),
+                child: const Icon(Icons.map_rounded,
+                    color: AppColors.onBrand, size: 22),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Tiny "● LIVE" badge with a breathing dot.
+class _LiveBadge extends StatelessWidget {
+  const _LiveBadge({required this.pulse});
+
+  final Animation<double> pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.onBrand.withValues(alpha: 0.14),
+        borderRadius: AppRadius.brSm,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: pulse,
+            builder: (context, _) => Container(
+              height: 6,
+              width: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.brand300
+                    .withValues(alpha: 0.5 + 0.5 * pulse.value),
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            'LIVE',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.onBrand,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Secondary tiles ─────────────────────────────────────────────────────────
+
+class _MiniTile extends StatelessWidget {
+  const _MiniTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -435,37 +683,40 @@ class _QuickAction extends StatelessWidget {
       borderRadius: AppRadius.brLg,
       child: InkWell(
         borderRadius: AppRadius.brLg,
-        onTap: onTap,
+        onTap: () => _soon(context, title),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.lg,
-            horizontal: AppSpacing.sm,
-          ),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             borderRadius: AppRadius.brLg,
             border: Border.all(color: AppColors.line),
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: 44,
-                width: 44,
-                decoration: const BoxDecoration(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
                   color: AppColors.brand50,
-                  shape: BoxShape.circle,
+                  borderRadius: AppRadius.brMd,
                 ),
-                child: Icon(icon, color: AppColors.brand700, size: 22),
+                child: Icon(icon, color: AppColors.brand700, size: 20),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
-                ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.titleMd),
+                  ),
+                  const SizedBox(width: 6),
+                  const _SoonTag(),
+                ],
               ),
+              const SizedBox(height: 2),
+              Text(subtitle, style: AppTypography.caption),
             ],
           ),
         ),
@@ -474,119 +725,7 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
-// ─── Sustainability ─────────────────────────────────────────────────────────
-
-/// Ties the app to the project's SDG framing (SDG 11 / sustainable campus
-/// mobility). Copy is aspirational-but-honest: it describes the panel, and the
-/// impact figures are marked as arriving with the real trip data, not invented.
-class _SustainabilityCard extends StatelessWidget {
-  const _SustainabilityCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.brLg,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.brand50,
-            AppColors.brand100.withValues(alpha: 0.6),
-          ],
-        ),
-        border: Border.all(color: AppColors.brand200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: AppColors.brand600,
-              borderRadius: AppRadius.brMd,
-            ),
-            child: const Icon(Icons.eco_rounded, color: AppColors.onBrand, size: 24),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Your campus impact', style: AppTypography.titleMd),
-                const SizedBox(height: 2),
-                Text(
-                  'Shared shuttle rides cut emissions per student. Your impact tally lights up as you ride.',
-                  style: AppTypography.caption.copyWith(color: AppColors.brand800),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Shared bits ────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: AppTypography.titleMd);
-  }
-}
-
-class _FeatureTile extends StatelessWidget {
-  const _FeatureTile({required this.icon, required this.title, required this.subtitle});
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.brLg,
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: AppColors.brand50,
-              borderRadius: AppRadius.brMd,
-            ),
-            child: Icon(icon, color: AppColors.brand700, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.titleMd),
-                const SizedBox(height: 2),
-                Text(subtitle, style: AppTypography.caption),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          const _SoonTag(),
-        ],
-      ),
-    );
-  }
-}
+// ─── Shared bits ─────────────────────────────────────────────────────────────
 
 class _SoonTag extends StatelessWidget {
   const _SoonTag();
@@ -594,7 +733,7 @@ class _SoonTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.lineSoft,
         borderRadius: AppRadius.brSm,
@@ -603,15 +742,15 @@ class _SoonTag extends StatelessWidget {
         'Soon',
         style: AppTypography.caption.copyWith(
           color: AppColors.inkMuted,
-          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 }
 
-/// Honest feedback for a not-yet-built action: tells the student it's coming
-/// rather than silently doing nothing or pretending to work.
+/// Honest feedback for a not-yet-built action.
 void _soon(BuildContext context, String feature) {
   AppSnackbar.info(context, '$feature is coming soon');
 }

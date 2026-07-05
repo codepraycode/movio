@@ -119,6 +119,7 @@ export interface BoardingEvent {
     student_id: string;
     credential_id: string;
     boarded_at: Date;
+    alighted_at: Date | null; // null while the student is still aboard; set on tap-out or trip end
     latitude: number | null;
     longitude: number | null;
 }

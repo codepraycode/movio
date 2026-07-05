@@ -20,11 +20,18 @@ class ShimmerBox extends StatefulWidget {
     required this.width,
     required this.height,
     this.radius = 8,
+    this.baseColor,
+    this.highlightColor,
   });
 
   final double width;
   final double height;
   final double radius;
+
+  /// Override the default grey ramp — e.g. white-on-brand for a shimmer that
+  /// sits on the green hero. Defaults to the neutral skeleton colours.
+  final Color? baseColor;
+  final Color? highlightColor;
 
   @override
   State<ShimmerBox> createState() => _ShimmerBoxState();
@@ -49,16 +56,14 @@ class _ShimmerBoxState extends State<ShimmerBox> with SingleTickerProviderStateM
       builder: (context, child) {
         // Slide the highlight band across using the animation value.
         final t = _controller.value;
+        final base = widget.baseColor ?? AppColors.lineSoft;
+        final highlight = widget.highlightColor ?? AppColors.line;
         return ShaderMask(
           blendMode: BlendMode.srcATop,
           shaderCallback: (bounds) => LinearGradient(
             begin: Alignment(-1 + t * 2, 0),
             end: Alignment(1 + t * 2, 0),
-            colors: const [
-              AppColors.lineSoft,
-              AppColors.line,
-              AppColors.lineSoft,
-            ],
+            colors: [base, highlight, base],
             stops: const [0.35, 0.5, 0.65],
           ).createShader(bounds),
           child: child,
@@ -68,7 +73,7 @@ class _ShimmerBoxState extends State<ShimmerBox> with SingleTickerProviderStateM
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          color: AppColors.lineSoft,
+          color: widget.baseColor ?? AppColors.lineSoft,
           borderRadius: BorderRadius.circular(widget.radius),
         ),
       ),

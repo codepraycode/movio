@@ -1,7 +1,21 @@
 import type { Request, Response, NextFunction } from 'express';
-import { topupCash as runTopupCash } from './wallet.service';
+import { topupCash as runTopupCash, getWalletBalance } from './wallet.service';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
 import type { TopupCashDto } from './wallet.types';
+
+/**
+ * GET /api/v1/wallet
+ * The authenticated student's own wallet balance. `req.user` is set by
+ * requireAuth (see wallet.routes.ts).
+ */
+export async function getMyWallet(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const wallet = await getWalletBalance(req.user!.user_id);
+        sendSuccess(res, wallet, 'Wallet balance retrieved');
+    } catch (err) {
+        next(err);
+    }
+}
 
 /**
  * POST /api/v1/wallet/topup-cash

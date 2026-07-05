@@ -20,8 +20,16 @@ export class BoardingDto {
 
 export interface BoardingResult {
     success: boolean;
+    /**
+     * A tap toggles: no open boarding event on this trip -> tap_in (deducts one
+     * credit); an open event exists -> tap_out (free, just closes the event).
+     * Matches the physical TapTrace flow - same card, same reader; the backend
+     * decides which action the tap was.
+     */
+    action?: 'tap_in' | 'tap_out';
     reason?: 'unrecognized_or_inactive_card' | 'insufficient_credits';
     student_name?: string;
     event_id?: string;
     boarded_at?: Date;
+    alighted_at?: Date | null;
 }

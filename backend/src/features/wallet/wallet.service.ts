@@ -1,6 +1,19 @@
 import * as walletModel from './wallet.model';
 import { NotFoundError } from '../../shared/errors';
+import type { WalletBalance } from './wallet.model';
 import type { TopupCashResult } from './wallet.types';
+
+/**
+ * The logged-in student's own wallet balance (credits = number of trips they can
+ * still board). Read-only; used by the mobile app's Transit Credit display.
+ */
+export async function getWalletBalance(userId: string): Promise<WalletBalance> {
+    const wallet = await walletModel.findWalletByUserId(userId);
+    if (!wallet) {
+        throw new NotFoundError('Wallet not found for this user');
+    }
+    return wallet;
+}
 
 /**
  * Transport Personnel take physical cash from a student and credit their

@@ -2,52 +2,45 @@
  * simulate-device.ts
  *
  * Full stand-in for a physical TapTrace unit (ESP32 + PN532 + GPS - not yet
- * built, blocked on parts ordering per AGENTS.md). Lets you pick (or auto-
- * pick) a trip and its configuration, then continuously posts GPS updates
- * and boarding taps against the real REST API - the same endpoints the real
- * device will call over MQTT once HW-4 exists. That matters because it's
- * what makes the admin dashboard's *live* features (Fleet Map's Socket.io
- * subscription, Trip Monitoring's count/capacity) provable today, not just
- * the REST responses.
+ * built, blocked on parts ordering per AGENTS.md). Everything that changes
+ * state goes through the real REST API - the same endpoints the real device
+ * (and the driver app) will use - so every Socket.io broadcast the backend
+ * makes (`trip:started`, `location:update`, `trip:passengers`, `trip:ended`)
+ * actually fires and live clients (mobile map, dashboard Fleet Map) update
+ * instantly. Direct DB access is kept only for read-only listings and for
+ * seeding NFC credentials, which have no REST endpoint on purpose.
  *
- * Note on "mobile": the mobile app has no real screens built yet (still a
- * placeholder shell per AGENTS.md) - this doesn't drive a mobile UI. It
- * makes the backend data realistic and live for whichever client reads it -
- * the dashboard today, mobile once it exists - since both read the same
- * endpoints.
- *
- * Interactive by default: prompts you through picking an existing active
- * trip to attach to (or starting a new one - vehicle/route/driver), then how
- * many passengers and how long to run. Every choice can also be given as a
- * flag to skip its prompt, or pass --yes to skip all prompts and auto-pick
- * anything not given. No new dependency for any of this - colors are
- * `node:util`'s built-in `styleText` (auto-disables when not a TTY, e.g. when
- * piped to a log file) and prompts are `node:readline/promises`.
+ * What it does:
+ *   - starts a trip (or attaches to an already-active one) and ends it cleanly
+ *   - streams GPS every 5s, driving along the trip's real route stops when the
+ *     route has coordinates (falls back to a random walk near FUTA otherwise)
+ *   - taps students in and out ON DEMAND: while the trip runs you get a live
+ *     console - press a student's number to tap them (the backend decides
+ *     whether that tap is a tap-in or a tap-out), add students, check status,
+ *     end the trip - all without restarting the script
+ *   - --auto replaces the live console with hands-free behaviour (tap-ins
+ *     staggered, tap-outs after a ride interval) for unattended demos
  *
  * Usage:
  *   yarn simulate:device [flags]
  *
  * Flags:
- *   --trip <id>            Attach to this exact trip (skips vehicle/route/driver selection)
- *   --vehicle <plate>      Vehicle to use when starting a new trip
- *   --route <name>         Route to use when starting a new trip ("none" to skip)
- *   --driver <id>          Driver to use when starting a new trip
- *   --passengers <n>       How many simulated students board (default 3)
- *   --duration <seconds>   Auto-stop after N seconds (default: run until Ctrl+C)
- *   --yes                  Skip all prompts - auto-pick anything not given via flags
+ *   --trip <id>            Attach to this exact trip (skips vehicle/route selection)
+ *   --vehicle <plate|id>   Vehicle to use when starting a new trip
+ *   --route <name|id>      Route to use when starting a new trip ("none" to skip)
+ *   --passengers <n>       How many simulated students to prepare (default 3)
+ *   --auto                 Hands-free: auto tap-in, ride, auto tap-out (no live console)
+ *   --duration <seconds>   Auto-stop after N seconds (default: run until you end it)
+ *   --yes                  Skip setup prompts - auto-pick anything not given via flags
  *   --help                 Show this help
  *
- * Examples:
- *   yarn simulate:device                                    interactive - pick everything from a menu
- *   yarn simulate:device --yes                               fully automatic, 3 passengers, unlimited
- *   yarn simulate:device --yes --passengers 5 --duration 60
- *   yarn simulate:device --trip 7699ade5-...                 attach straight to a known trip, still prompts for passengers/duration
- *
- * Ctrl+C (or the duration elapsing) always ends the trip cleanly before
- * exiting - no dangling active trip left behind, the same problem
- * `manage-trips.ts end-all` exists to clean up after. Ending a trip is
- * normally a driver action, not something a real TapTrace device does -
- * this script does it anyway purely as a simulator convenience.
+ * Trips this script starts belong to its own "Sim Driver" account (registered
+ * through the real /auth/register), because /trips/start needs a driver JWT
+ * and we don't know real drivers' passwords. If you attach to a trip some
+ * other driver started, ending it falls back to a direct DB update (the
+ * driver-ownership rule is real and stays enforced in the API) - that path
+ * can't fire the `trip:ended` broadcast, so live clients reconcile on their
+ * next roster poll instead. The script tells you when that happens.
  */
 
 import * as readline from 'node:readline/promises';
@@ -56,14 +49,16 @@ import { pool } from '../src/config/db';
 import * as tripsModel from '../src/features/trips/trips.model';
 import * as vehiclesModel from '../src/features/vehicles/vehicles.model';
 import * as routesModel from '../src/features/routes/routes.model';
-import * as usersModel from '../src/features/users/users.model';
 import type { VehicleWithDriver } from '../src/features/vehicles/vehicles.types';
+import type { RouteStop } from '../src/types';
 
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000/api/v1';
 const SIM_PASSWORD = 'sim-password-123';
 const TOPUP_AMOUNT = 5;
 const GPS_INTERVAL_MS = 5_000; // matches the real device's cadence, Ch.3 §3.4.4
-const TAP_INTERVAL_MS = 8_000;
+const SPEED_KMH = 22; // simulated shuttle speed along the route
+const AUTO_TAP_INTERVAL_MS = 8_000; // --auto: gap between tap-ins
+const AUTO_RIDE_MS = 40_000; // --auto: how long each passenger rides before tap-out
 
 // ---- colors (node:util.styleText - no dependency, auto-disables on non-TTY output) ----
 const c = {
@@ -92,20 +87,27 @@ ${c.heading('Usage')}
   yarn simulate:device [flags]
 
 ${c.heading('Flags')}
-  --trip <id>            Attach to this exact trip (skips vehicle/route/driver selection)
-  --vehicle <plate>      Vehicle to use when starting a new trip
-  --route <name>         Route to use when starting a new trip ("none" to skip)
-  --driver <id>          Driver to use when starting a new trip
-  --passengers <n>       How many simulated students board (default 3)
-  --duration <seconds>   Auto-stop after N seconds (default: run until Ctrl+C)
-  --yes                  Skip all prompts - auto-pick anything not given via flags
+  --trip <id>            Attach to this exact trip (skips vehicle/route selection)
+  --vehicle <plate|id>   Vehicle to use when starting a new trip
+  --route <name|id>      Route to use when starting a new trip ("none" to skip)
+  --passengers <n>       How many simulated students to prepare (default 3)
+  --auto                 Hands-free: auto tap-in, ride, auto tap-out (no live console)
+  --duration <seconds>   Auto-stop after N seconds
+  --yes                  Skip setup prompts - auto-pick anything not given via flags
   --help                 Show this help
 
+${c.heading('Live console (default mode)')}
+  1..n   tap that student - backend decides tap-in vs tap-out
+  a      add one more simulated student
+  s      status: who's aboard, last GPS position, ping count
+  e      end the trip and exit
+  d      detach - exit but leave the trip running
+  h      help
+
 ${c.heading('Examples')}
-  yarn simulate:device
-  yarn simulate:device --yes
-  yarn simulate:device --yes --passengers 5 --duration 60
-  yarn simulate:device --trip 7699ade5-...
+  yarn simulate:device                       guided setup, then live console
+  yarn simulate:device --yes                 auto-pick everything, live console
+  yarn simulate:device --auto --duration 90  unattended demo run
 `);
 }
 
@@ -114,17 +116,17 @@ if (hasFlag('help')) {
     process.exit(0);
 }
 
-const nonInteractive = hasFlag('yes');
+const nonInteractive = hasFlag('yes') || hasFlag('auto');
+const autoMode = hasFlag('auto');
 const flags = {
     trip: flag('trip'),
     vehicle: flag('vehicle'),
     route: flag('route'),
-    driver: flag('driver'),
     passengers: flag('passengers'),
     duration: flag('duration'),
 };
 
-// ---- interactive prompts ----
+// ---- interactive prompts (setup phase) ----
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
 async function selectFrom<T>(
@@ -158,18 +160,7 @@ async function promptNumber(label: string, defaultValue: number): Promise<number
     return n;
 }
 
-async function promptOptionalNumber(label: string): Promise<number | undefined> {
-    const answer = (await rl.question(c.dim(`${label} [unlimited]: `))).trim();
-    if (!answer) return undefined;
-    const n = Number(answer);
-    if (!Number.isInteger(n) || n <= 0) {
-        console.log(c.err('Enter a positive whole number, or leave blank for unlimited.'));
-        return promptOptionalNumber(label);
-    }
-    return n;
-}
-
-// ---- HTTP helpers (real API calls - same endpoints the real device/mobile will use) ----
+// ---- HTTP helpers (real API calls - same endpoints the real device will use) ----
 interface ApiEnvelope<T> {
     success: boolean;
     message: string;
@@ -223,26 +214,169 @@ async function ensureCredential(userId: string, uid: string): Promise<void> {
     );
 }
 
-function jitter(value: number, amount: number): number {
-    return value + (Math.random() - 0.5) * amount;
+// ---- passengers ----
+interface Passenger {
+    n: number;
+    name: string;
+    uid: string;
+    aboard: boolean;
 }
 
-// ---- trip/vehicle/route/driver resolution ----
-async function resolveDriver(): Promise<string> {
-    if (flags.driver) return flags.driver;
+let personnelToken: string | undefined;
 
-    const drivers = await usersModel.listUsersByRole('driver');
-    if (drivers.length === 0) {
-        console.log(c.warn('No drivers exist yet - creating one (sim-driver@movio.test)'));
+async function setupPassenger(n: number): Promise<Passenger> {
+    if (!personnelToken) {
+        personnelToken = (await ensureUser('sim-personnel@movio.test', 'Sim', 'Personnel', 'transport_personnel'))
+            .token;
+    }
+    const email = `sim-student-${n}@movio.test`;
+    const uid = `04SIMTAP${String(n).padStart(2, '0')}`;
+
+    const student = await ensureUser(email, `Sim Student ${n}`, 'Passenger', 'student');
+    await ensureCredential(student.user.user_id, uid);
+
+    const topup = await postJson(
+        '/wallet/topup-cash',
+        { user_id: student.user.user_id, amount: TOPUP_AMOUNT },
+        personnelToken
+    );
+    if (topup.status !== 200) {
+        throw new Error(`Could not top up ${email}: ${JSON.stringify(topup.data)}`);
+    }
+    return { n, name: `Sim Student ${n}`, uid, aboard: false };
+}
+
+async function setupPassengers(count: number): Promise<Passenger[]> {
+    if (count === 0) return [];
+    console.log(c.dim(`Setting up ${count} simulated passenger(s) (accounts, NFC cards, wallet top-ups)...`));
+    const passengers: Passenger[] = [];
+    for (let i = 1; i <= count; i++) passengers.push(await setupPassenger(i));
+    return passengers;
+}
+
+// ---- GPS path: drive along the route's real stops when it has them ----
+interface GeoPoint {
+    lat: number;
+    lng: number;
+}
+
+function haversineKm(a: GeoPoint, b: GeoPoint): number {
+    const R = 6371;
+    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+    const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+    const s =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/**
+ * Walks back and forth along an ordered list of stops at ~SPEED_KMH, with a
+ * touch of jitter so pings look like real GPS. With no usable stops it random-
+ * walks near the FUTA campus instead.
+ */
+class PathDriver {
+    private points: GeoPoint[];
+    private segment = 0; // travelling points[segment] -> points[segment + direction]
+    private progressKm = 0;
+    private direction = 1; // 1 = forwards through the stops, -1 = back
+    private fallback: GeoPoint = { lat: 7.3006, lng: 5.1367 };
+    readonly followingRoute: boolean;
+
+    constructor(stops: RouteStop[]) {
+        this.points = stops
+            .filter((s) => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)))
+            .map((s) => ({ lat: Number(s.lat), lng: Number(s.lng) }));
+        this.followingRoute = this.points.length >= 2;
+    }
+
+    /** Advance by one GPS interval's worth of travel and return the new position. */
+    next(): GeoPoint {
+        if (!this.followingRoute) {
+            this.fallback = {
+                lat: this.fallback.lat + (Math.random() - 0.5) * 0.0012,
+                lng: this.fallback.lng + (Math.random() - 0.5) * 0.0012,
+            };
+            return this.fallback;
+        }
+
+        let stepKm = (SPEED_KMH / 3600) * (GPS_INTERVAL_MS / 1000);
+        while (stepKm > 0) {
+            const from = this.points[this.segment];
+            const to = this.points[this.segment + this.direction];
+            const segKm = Math.max(haversineKm(from, to), 1e-6);
+            const remaining = segKm - this.progressKm;
+            if (stepKm < remaining) {
+                this.progressKm += stepKm;
+                stepKm = 0;
+            } else {
+                stepKm -= remaining;
+                this.segment += this.direction;
+                this.progressKm = 0;
+                // Reached either end of the route - turn around.
+                if (this.segment === this.points.length - 1 || this.segment === 0) {
+                    this.direction *= -1;
+                }
+            }
+        }
+
+        const from = this.points[this.segment];
+        const to = this.points[this.segment + this.direction];
+        const segKm = Math.max(haversineKm(from, to), 1e-6);
+        const t = this.progressKm / segKm;
+        return {
+            lat: from.lat + (to.lat - from.lat) * t + (Math.random() - 0.5) * 0.00008,
+            lng: from.lng + (to.lng - from.lng) * t + (Math.random() - 0.5) * 0.00008,
+        };
+    }
+}
+
+// ---- trip resolution (start/end go through the REAL API so broadcasts fire) ----
+interface TripHandle {
+    tripId: string;
+    plate: string;
+    routeStops: RouteStop[];
+    /** Set when this script's own Sim Driver owns the trip - lets us end it via REST. */
+    driverToken?: string;
+}
+
+async function routeStopsById(routeId: string | null): Promise<RouteStop[]> {
+    if (!routeId) return [];
+    const routes = await routesModel.listRoutes();
+    return routes.find((r) => r.route_id === routeId)?.stops ?? [];
+}
+
+async function startTripViaApi(vehicleId: string, plate: string, routeId: string | null): Promise<TripHandle> {
+    const driver = await ensureUser('sim-driver@movio.test', 'Sim', 'Driver', 'driver');
+    const started = await postJson<{ trip_id: string }>(
+        '/trips/start',
+        routeId ? { vehicle_id: vehicleId, route_id: routeId } : { vehicle_id: vehicleId },
+        driver.token
+    );
+    if (started.status !== 201) {
+        throw new Error(`Could not start trip: ${JSON.stringify(started.data)}`);
+    }
+    console.log(
+        c.ok(`Started trip ${started.data.data.trip_id} on ${plate} (via REST - trip:started broadcast fired).`)
+    );
+    return {
+        tripId: started.data.data.trip_id,
+        plate,
+        routeStops: await routeStopsById(routeId),
+        driverToken: driver.token,
+    };
+}
+
+async function attachToTrip(tripId: string, plate: string, routeId: string | null): Promise<TripHandle> {
+    // If Sim Driver owns this trip (e.g. a previous run detached from it), we
+    // can still end it over REST; otherwise ending falls back to direct DB.
+    const trip = await tripsModel.findTripById(tripId);
+    let driverToken: string | undefined;
+    if (trip) {
         const driver = await ensureUser('sim-driver@movio.test', 'Sim', 'Driver', 'driver');
-        return driver.user.user_id;
+        if (trip.driver_id === driver.user.user_id) driverToken = driver.token;
     }
-    if (nonInteractive) {
-        console.log(c.dim(`Using driver: ${drivers[0].first_name} ${drivers[0].last_name}`));
-        return drivers[0].user_id;
-    }
-    const chosen = await selectFrom('Choose a driver', drivers, (d) => `${d.first_name} ${d.last_name} ${c.dim(d.email)}`);
-    return chosen!.user_id;
+    return { tripId, plate, routeStops: await routeStopsById(routeId), driverToken };
 }
 
 async function resolveVehicleAndRoute(): Promise<{ vehicleId: string; plate: string; routeId: string | null }> {
@@ -294,22 +428,25 @@ async function resolveVehicleAndRoute(): Promise<{ vehicleId: string; plate: str
     return { vehicleId: vehicle.vehicle_id, plate: vehicle.plate_number, routeId };
 }
 
-async function chooseTrip(): Promise<{ tripId: string; plate: string }> {
+async function chooseTrip(): Promise<TripHandle> {
     if (flags.trip) {
         const trip = await tripsModel.findTripById(flags.trip);
         if (!trip) throw new Error(`No trip found with id ${flags.trip}`);
+        if (trip.status !== 'active') throw new Error(`Trip ${flags.trip} is not active (${trip.status}).`);
         const vehicles = await vehiclesModel.listVehiclesWithDriver();
         const plate = vehicles.find((v) => v.vehicle_id === trip.vehicle_id)?.plate_number ?? trip.vehicle_id;
-        return { tripId: trip.trip_id, plate };
+        return attachToTrip(trip.trip_id, plate, trip.route_id);
     }
 
     const trips = await tripsModel.listTripsWithPassengerCounts();
     const activeTrips = trips.filter((t) => t.status === 'active');
 
-    if (activeTrips.length > 0) {
+    if (activeTrips.length > 0 && !flags.vehicle) {
         if (nonInteractive) {
-            console.log(c.dim(`Attaching to already-active trip ${activeTrips[0].trip_id} on ${activeTrips[0].plate_number}.`));
-            return { tripId: activeTrips[0].trip_id, plate: activeTrips[0].plate_number };
+            const t = activeTrips[0];
+            console.log(c.dim(`Attaching to already-active trip ${t.trip_id} on ${t.plate_number}.`));
+            const full = await tripsModel.findTripById(t.trip_id);
+            return attachToTrip(t.trip_id, t.plate_number, full?.route_id ?? null);
         }
         const choice = await selectFrom(
             'Active trips found',
@@ -318,137 +455,218 @@ async function chooseTrip(): Promise<{ tripId: string; plate: string }> {
                 `${t.plate_number} on ${t.route_name ?? 'no route'} ${c.dim(`(${t.passenger_count}/${t.capacity} aboard, driver ${t.driver_first_name})`)}`,
             { allowSkip: true, skipLabel: 'Start a new trip instead' }
         );
-        if (choice) return { tripId: choice.trip_id, plate: choice.plate_number };
+        if (choice) {
+            const full = await tripsModel.findTripById(choice.trip_id);
+            return attachToTrip(choice.trip_id, choice.plate_number, full?.route_id ?? null);
+        }
     }
 
-    const driverId = await resolveDriver();
     const { vehicleId, plate, routeId } = await resolveVehicleAndRoute();
 
-    // The chosen vehicle might already have an active trip (picked explicitly
-    // via --vehicle, or a fresh trip started elsewhere since the list above
-    // was fetched) - reuse it rather than erroring, same as manage-trips.ts.
+    // The chosen vehicle might already have an active trip - attach rather than error.
     const already = await tripsModel.findActiveTripByVehicle(vehicleId);
     if (already) {
         console.log(c.dim(`${plate} already has an active trip - attaching to it.`));
-        return { tripId: already.trip_id, plate };
+        return attachToTrip(already.trip_id, plate, already.route_id);
     }
 
-    const trip = await tripsModel.insertTrip(driverId, vehicleId, routeId, null);
-    console.log(c.ok(`Started trip ${trip.trip_id} on ${plate}.`));
-    return { tripId: trip.trip_id, plate };
+    return startTripViaApi(vehicleId, plate, routeId);
 }
 
-async function setupPassengers(count: number): Promise<{ uid: string }[]> {
-    if (count === 0) return [];
-    console.log(c.dim(`Setting up ${count} simulated passenger(s)...`));
-    const personnel = await ensureUser('sim-personnel@movio.test', 'Sim', 'Personnel', 'transport_personnel');
+// ---- the tap itself (backend decides tap-in vs tap-out) ----
+interface TapResponse {
+    success: boolean;
+    action?: 'tap_in' | 'tap_out';
+    reason?: string;
+    student_name?: string;
+}
 
-    const passengers: { uid: string }[] = [];
-    for (let i = 1; i <= count; i++) {
-        const email = `sim-student-${i}@movio.test`;
-        const uid = `04SIMTAP${String(i).padStart(2, '0')}`;
-
-        const student = await ensureUser(email, `Sim Student ${i}`, 'Passenger', 'student');
-        await ensureCredential(student.user.user_id, uid);
-
-        const topup = await postJson(
-            '/wallet/topup-cash',
-            { user_id: student.user.user_id, amount: TOPUP_AMOUNT },
-            personnel.token
-        );
-        if (topup.status !== 200) {
-            throw new Error(`Could not top up ${email}: ${JSON.stringify(topup.data)}`);
-        }
-
-        passengers.push({ uid });
+async function tap(passenger: Passenger, tripId: string, pos: GeoPoint): Promise<void> {
+    const { data } = await postJson<TapResponse>('/boarding/authenticate', {
+        uid: passenger.uid,
+        trip_id: tripId,
+        latitude: pos.lat,
+        longitude: pos.lng,
+    });
+    const result = data.data;
+    if (result?.success && result.action === 'tap_in') {
+        passenger.aboard = true;
+        console.log(`${c.ok('⇥ tap-in ')} ${passenger.name} ${c.dim('(1 credit deducted)')}`);
+    } else if (result?.success && result.action === 'tap_out') {
+        passenger.aboard = false;
+        console.log(`${c.warn('⇤ tap-out')} ${passenger.name} ${c.dim('(no charge)')}`);
+    } else {
+        console.log(`${c.err('✗ tap failed')} ${passenger.name}: ${result?.reason ?? JSON.stringify(data)}`);
     }
-    return passengers;
 }
 
+// ---- main ----
 async function main(): Promise<void> {
     console.log(c.title('\nMovIO TapTrace Simulator\n'));
 
-    const { tripId, plate } = await chooseTrip();
+    const handle = await chooseTrip();
 
     const passengerCount =
         flags.passengers !== undefined
             ? Number(flags.passengers)
             : nonInteractive
               ? 3
-              : await promptNumber('How many passengers should board?', 3);
+              : await promptNumber('How many simulated students should be available?', 3);
 
-    const durationSeconds =
-        flags.duration !== undefined
-            ? Number(flags.duration)
-            : nonInteractive
-              ? undefined
-              : await promptOptionalNumber('Auto-stop after how many seconds? (blank = run until Ctrl+C)');
-
-    rl.close();
+    const durationSeconds = flags.duration !== undefined ? Number(flags.duration) : undefined;
 
     const passengers = await setupPassengers(passengerCount);
 
     console.log(`\n${c.title('─── Simulating ───')}`);
-    console.log(`  Trip:        ${c.key(tripId)} ${c.dim(`(${plate})`)}`);
-    console.log(`  Passengers:  ${passengers.length}`);
-    console.log(`  Duration:    ${durationSeconds ? `${durationSeconds}s` : 'until Ctrl+C'}`);
-    console.log(c.dim(`  GPS every ${GPS_INTERVAL_MS / 1000}s, taps every ${TAP_INTERVAL_MS / 1000}s\n`));
+    console.log(`  Trip:       ${c.key(handle.tripId)} ${c.dim(`(${handle.plate})`)}`);
+    console.log(`  Students:   ${passengers.length} ${c.dim('ready to tap')}`);
+    console.log(
+        `  GPS:        every ${GPS_INTERVAL_MS / 1000}s, ${
+            handle.routeStops.length >= 2
+                ? `driving the route's ${handle.routeStops.length} stops at ~${SPEED_KMH} km/h`
+                : 'random walk near campus (route has no usable stops)'
+        }`
+    );
+    console.log(`  Mode:       ${autoMode ? 'auto (hands-free)' : "live console - press h + Enter for help"}`);
+    if (durationSeconds) console.log(`  Duration:   ${durationSeconds}s`);
+    console.log('');
 
-    let lat = 7.3006;
-    let lng = 5.1367;
+    const pathDriver = new PathDriver(handle.routeStops);
+    let pos = pathDriver.next();
+    let pings = 0;
+    let gpsFailures = 0;
     let ended = false;
 
-    const gpsTimer: ReturnType<typeof setInterval> = setInterval(() => {
-        lat = jitter(lat, 0.0006);
-        lng = jitter(lng, 0.0006);
-        void postJson('/tracking/update', { trip_id: tripId, latitude: lat, longitude: lng }).then(({ status }) => {
-            const badge = status === 201 ? c.ok(String(status)) : c.err(String(status));
-            console.log(`${c.dim('[gps]')} ${badge} (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
-        });
+    const gpsTimer = setInterval(() => {
+        pos = pathDriver.next();
+        void postJson('/tracking/update', { trip_id: handle.tripId, latitude: pos.lat, longitude: pos.lng }).then(
+            ({ status }) => {
+                if (status === 201) {
+                    pings++;
+                } else {
+                    gpsFailures++;
+                    console.log(`${c.err('[gps]')} update rejected with ${status}`);
+                }
+            },
+            () => {
+                gpsFailures++;
+                console.log(`${c.err('[gps]')} network error posting update`);
+            }
+        );
     }, GPS_INTERVAL_MS);
 
-    let tapIndex = 0;
-    const tapTimer: ReturnType<typeof setInterval> = setInterval(() => {
-        if (tapIndex >= passengers.length) {
-            clearInterval(tapTimer);
-            return;
-        }
-        const { uid } = passengers[tapIndex++];
-        void postJson<{ success: boolean; reason?: string; student_name?: string }>('/boarding/authenticate', {
-            uid,
-            trip_id: tripId,
-            latitude: lat,
-            longitude: lng,
-        }).then(({ data }) => {
-            const tag = c.dim(`[tap ${tapIndex}/${passengers.length}]`);
-            if (data.data?.success) {
-                console.log(`${tag} ${c.ok('boarded')} ${data.data.student_name ?? uid}`);
-            } else {
-                console.log(`${tag} ${c.err('failed')} uid=${uid} ${data.data?.reason ?? JSON.stringify(data)}`);
+    async function endTrip(): Promise<void> {
+        if (handle.driverToken) {
+            const res = await postJson(`/trips/${handle.tripId}/end`, {}, handle.driverToken);
+            if (res.status === 200) {
+                console.log(c.ok(`Trip ${handle.tripId} ended via REST - trip:ended broadcast fired.`));
+                return;
             }
-        });
-    }, TAP_INTERVAL_MS);
+            console.log(c.warn(`REST end failed (${res.status}) - falling back to direct DB.`));
+        } else {
+            console.log(
+                c.warn(
+                    'This trip was started by another driver - ending it directly in the DB (no trip:ended broadcast; live clients reconcile on their next roster poll).'
+                )
+            );
+        }
+        const trip = await tripsModel.findTripById(handle.tripId);
+        if (trip && trip.status === 'active') {
+            await tripsModel.endTrip(handle.tripId);
+            console.log(c.ok(`Trip ${handle.tripId} ended.`));
+        }
+    }
 
-    async function endAndExit(): Promise<void> {
+    async function shutdown(opts: { endTheTrip: boolean }): Promise<void> {
         if (ended) return;
         ended = true;
         clearInterval(gpsTimer);
-        clearInterval(tapTimer);
-
-        const trip = await tripsModel.findTripById(tripId);
-        if (trip && trip.status === 'active') {
-            await tripsModel.endTrip(tripId);
-            console.log(c.ok(`\nTrip ${tripId} ended.`));
+        if (opts.endTheTrip) {
+            await endTrip();
+        } else {
+            console.log(c.dim(`Detached - trip ${handle.tripId} is still active.`));
         }
+        rl.close();
         await pool.end();
         process.exit(0);
     }
 
-    process.on('SIGINT', () => void endAndExit());
-    process.on('SIGTERM', () => void endAndExit());
+    process.on('SIGINT', () => void shutdown({ endTheTrip: true }));
+    process.on('SIGTERM', () => void shutdown({ endTheTrip: true }));
+    if (durationSeconds) setTimeout(() => void shutdown({ endTheTrip: true }), durationSeconds * 1000);
 
-    if (durationSeconds) {
-        setTimeout(() => void endAndExit(), durationSeconds * 1000);
+    if (autoMode) {
+        // Hands-free: stagger tap-ins, let each passenger ride, then tap them out.
+        passengers.forEach((p, i) => {
+            setTimeout(() => {
+                if (ended) return;
+                void tap(p, handle.tripId, pos).then(() => {
+                    setTimeout(() => {
+                        if (!ended && p.aboard) void tap(p, handle.tripId, pos);
+                    }, AUTO_RIDE_MS);
+                });
+            }, i * AUTO_TAP_INTERVAL_MS);
+        });
+        return; // runs until --duration elapses or Ctrl+C
+    }
+
+    // ---- live console ----
+    function printHelp(): void {
+        console.log(`${c.heading('Commands')} ${c.dim('(type one, then Enter)')}
+  ${c.key(`1..${Math.max(passengers.length, 1)}`)}   tap that student (backend decides tap-in vs tap-out)
+  ${c.key('a')}      add one more simulated student
+  ${c.key('s')}      status - who's aboard, last GPS position
+  ${c.key('e')}      end the trip and exit
+  ${c.key('d')}      detach - exit but leave the trip running
+  ${c.key('h')}      this help`);
+    }
+
+    function printStatus(): void {
+        const aboard = passengers.filter((p) => p.aboard);
+        console.log(`${c.heading('Status')}
+  Trip:      ${handle.tripId} ${c.dim(`(${handle.plate})`)}
+  Aboard:    ${aboard.length ? aboard.map((p) => p.name).join(', ') : c.dim('nobody')}
+  Position:  ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} ${c.dim(`(${pings} pings sent${gpsFailures ? `, ${gpsFailures} failed` : ''})`)}`);
+        passengers.forEach((p) =>
+            console.log(`  ${c.key(String(p.n))}) ${p.name} ${p.aboard ? c.ok('● aboard') : c.dim('○ off')}`)
+        );
+    }
+
+    printHelp();
+    printStatus();
+
+    // GPS keeps ticking in the background; each loop iteration is one command.
+    for (;;) {
+        let line: string;
+        try {
+            line = (await rl.question(c.dim('\ntap> '))).trim().toLowerCase();
+        } catch {
+            break; // readline closed during shutdown
+        }
+        if (ended) break;
+        if (line === '') continue;
+        if (line === 'h' || line === '?') {
+            printHelp();
+        } else if (line === 's') {
+            printStatus();
+        } else if (line === 'a') {
+            const p = await setupPassenger(passengers.length + 1);
+            passengers.push(p);
+            console.log(c.ok(`${p.name} is ready (card ${p.uid}, topped up).`));
+        } else if (line === 'e') {
+            await shutdown({ endTheTrip: true });
+        } else if (line === 'd' || line === 'q') {
+            await shutdown({ endTheTrip: false });
+        } else if (/^\d+$/.test(line)) {
+            const p = passengers.find((x) => x.n === Number(line));
+            if (!p) {
+                console.log(c.err(`No student ${line} - you have ${passengers.length} (press 'a' to add one).`));
+            } else {
+                await tap(p, handle.tripId, pos);
+            }
+        } else {
+            console.log(c.err(`Unknown command "${line}" - press h for help.`));
+        }
     }
 }
 

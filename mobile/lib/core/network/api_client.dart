@@ -31,16 +31,25 @@ class ApiClient {
     required Map<String, dynamic> body,
     String? token,
   }) async {
-    return _send(() => _http.post(
+    final data = await _send(() => _http.post(
           _uri(path),
           headers: _headers(token),
           body: jsonEncode(body),
         ));
+    return (data as Map<String, dynamic>?) ?? const {};
   }
 
   /// GET [path]. Returns the decoded `data` object.
   Future<Map<String, dynamic>> get(String path, {String? token}) async {
-    return _send(() => _http.get(_uri(path), headers: _headers(token)));
+    final data = await _send(() => _http.get(_uri(path), headers: _headers(token)));
+    return (data as Map<String, dynamic>?) ?? const {};
+  }
+
+  /// GET [path] where the backend's `data` is a JSON array (e.g. list endpoints
+  /// like `/tracking/active`). Returns the raw list of decoded elements.
+  Future<List<dynamic>> getList(String path, {String? token}) async {
+    final data = await _send(() => _http.get(_uri(path), headers: _headers(token)));
+    return (data as List<dynamic>?) ?? const [];
   }
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
@@ -52,8 +61,9 @@ class ApiClient {
       };
 
   /// Runs [request], maps transport failures to [ApiException.network], and
-  /// unwraps the success/error envelope.
-  Future<Map<String, dynamic>> _send(
+  /// unwraps the success/error envelope. Returns the raw `data` payload (an
+  /// object or a list depending on the endpoint); callers cast as appropriate.
+  Future<dynamic> _send(
     Future<http.Response> Function() request,
   ) async {
     late http.Response res;
@@ -76,7 +86,7 @@ class ApiClient {
 
     final success = json['success'] == true;
     if (success && res.statusCode >= 200 && res.statusCode < 300) {
-      return (json['data'] as Map<String, dynamic>?) ?? const {};
+      return json['data'];
     }
 
     // Failure envelope: surface the backend's message + any per-field details.

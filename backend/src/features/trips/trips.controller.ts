@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as tripsService from './trips.service';
+import { emitTripStarted, emitTripEnded } from './trips.socket';
+import { findActiveTripRowById } from '../tracking/tracking.model';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
 import type { TripStartDto } from './trips.types';
 
@@ -13,6 +15,12 @@ export async function startTrip(req: Request, res: Response, next: NextFunction)
 
     try {
         const trip = await tripsService.startTrip(req.user!.user_id, vehicle_id, route_id, device_id);
+
+        // Broadcast the new trip in the same shape GET /tracking/active returns,
+        // so live map clients can show it without waiting for their next poll.
+        const row = await findActiveTripRowById(trip.trip_id);
+        if (row) emitTripStarted(req.app.get('io'), row);
+
         sendSuccess(res, trip, 'Trip started', 201);
     } catch (err) {
         next(err);
@@ -26,6 +34,7 @@ export async function startTrip(req: Request, res: Response, next: NextFunction)
 export async function endTrip(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const trip = await tripsService.endTrip(req.params.id, req.user!.user_id);
+        emitTripEnded(req.app.get('io'), trip.trip_id);
         sendSuccess(res, trip, 'Trip ended');
     } catch (err) {
         next(err);

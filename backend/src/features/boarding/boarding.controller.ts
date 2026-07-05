@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { authenticateBoarding as runBoardingAuth } from './boarding.service';
+import { countOnboard } from './boarding.model';
+import { emitPassengerUpdate } from './boarding.socket';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
 import type { BoardingDto } from './boarding.types';
 
@@ -23,6 +25,19 @@ export async function authenticateBoarding(
 
     try {
         const result = await runBoardingAuth(uid, trip_id, latitude, longitude);
+
+        // Successful tap-in/tap-out changes the trip's live occupancy - push the
+        // fresh count to connected clients (mobile map info sheet, dashboard).
+        if (result.success && result.action) {
+            const passengerCount = await countOnboard(trip_id);
+            emitPassengerUpdate(req.app.get('io'), {
+                trip_id,
+                passenger_count: passengerCount,
+                action: result.action,
+                student_name: result.student_name,
+            });
+        }
+
         sendSuccess(res, result, 'Boarding attempt processed');
     } catch (err) {
         next(err);

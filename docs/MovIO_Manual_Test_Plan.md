@@ -213,6 +213,22 @@ Required the `assigned_driver_id` column on `vehicles`, added by a migration the
 | VEHICLE-07 | — | POST `/admin/vehicles` with no Authorization header | 401 | `{"message":"Missing or malformed Authorization header"}` | Pass |
 | VEHICLE-08 | Student JWT | POST `/admin/vehicles` as a non-admin | 403 | `{"message":"Forbidden - insufficient role"}` | Pass |
 
+## 16. Tap-out + Live Socket Broadcasts (`MOB-5` live map groundwork)
+
+The same `POST /boarding/authenticate` endpoint now toggles: if the student has an open boarding session (`alighted_at IS NULL`) on that trip it's a **tap-out** (free, closes the session); otherwise a **tap-in** (deducts 1 credit). Ending a trip closes all still-open sessions in the same statement. Four socket events broadcast live: `location:update` (existing), `trip:started`, `trip:ended`, `trip:passengers`. Backend rows below were verified 2026-07-05 with `yarn simulate:device --auto` + a socket.io-client listener capturing every event with timestamps, and DB cross-checks against live Supabase.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| LIVE-01 | Student aboard (tapped in, not out) | POST `/boarding/authenticate` with the same uid + trip | 200, `action:"tap_out"`, **no credit deducted**, `alighted_at` set on the boarding event | Verified: `boarding_deduction -1` only on tap-in rows; `alighted_at` timestamps confirmed in DB | Pass |
+| LIVE-02 | Student not aboard, balance ≥ 1 | POST `/boarding/authenticate` | 200, `action:"tap_in"`, 1 credit deducted, new boarding event with `alighted_at NULL` | Verified same run | Pass |
+| LIVE-03 | Students still aboard | End the trip (REST or simulator exit) | All open sessions closed (`alighted_at` set) in the same statement as the status flip | Verified: 0 open sessions on any active trip after runs; historical NULLs only on completed trips predating the column | Pass |
+| LIVE-04 | Socket client connected | Driver starts a trip via `POST /trips/start` | `trip:started` arrives instantly with the full `GET /tracking/active` row shape (location fields null until first ping) | Captured at t=25.1s in listener log, payload shape confirmed | Pass |
+| LIVE-05 | Socket client connected, trip active | Simulator streams GPS + taps | `location:update` every ~5s; `trip:passengers` with correct climbing/falling `passenger_count` + `action` + `student_name` on every tap | Captured: count 1→2 on tap-ins, →1 on tap-out, GPS steady at 5s intervals | Pass |
+| LIVE-06 | Socket client connected | Driver ends the trip via `POST /trips/:id/end` | `trip:ended` `{trip_id}` arrives instantly | Captured at t=41.0s in listener log | Pass |
+| LIVE-07 | Active trips: aboard-now count; completed: total carried | GET `/tracking/active` + `GET /admin/trips` after tap-outs | Active trip `passenger_count` = students aboard now (excludes alighted); completed trips still show total riders carried | Verified via occupancy subquery + FILTER clause; counts matched taps | Pass |
+| LIVE-08 | App on device, simulator running on LAN | Open the mobile live map, run `yarn simulate:device` | Marker appears when trip starts (no reload), glides with GPS, info-sheet count updates on each tap, marker disappears when trip ends | Pending device run (code analyze/test clean; listeners wired for all four events) | |
+| LIVE-09 | Simulator interactive mode | `yarn simulate:device`, use the `tap>` console: number keys tap students in/out, `a` adds a student, `s` shows status, `e` ends trip | Each command behaves as printed in `h`elp; backend decides tap-in vs tap-out automatically | Driven through a real pty (2026-07-05): `1`→tap-in (credit deducted), `s`→shows aboard, `1`→tap-out (no charge), `a`→Sim Student 2 ready, `2`→tap-in, `e`→trip ended via REST with broadcast | Pass |
+
 ---
 
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
