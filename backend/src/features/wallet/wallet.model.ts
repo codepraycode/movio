@@ -1,8 +1,31 @@
 import type { PoolClient } from 'pg';
 import { query, pool } from '../../config/db';
-import type { TransitWallet } from '../../types';
+import type { CreditTransaction, TransitWallet } from '../../types';
 
 export { pool };
+
+export type WalletTransaction = Pick<
+    CreditTransaction,
+    'transaction_id' | 'amount' | 'type' | 'reference' | 'created_at'
+>;
+
+/**
+ * A user's credit transaction history, newest first (mobile "credit history"
+ * screen). Joined through the wallet so a user can only ever read their own
+ * rows; a user with no wallet simply gets an empty list.
+ */
+export async function findTransactionsByUserId(userId: string, limit = 100): Promise<WalletTransaction[]> {
+    const result = await query<WalletTransaction>(
+        `SELECT ct.transaction_id, ct.amount, ct.type, ct.reference, ct.created_at
+         FROM credit_transactions ct
+         JOIN transit_wallets w ON w.wallet_id = ct.wallet_id
+         WHERE w.user_id = $1
+         ORDER BY ct.created_at DESC
+         LIMIT $2`,
+        [userId, limit]
+    );
+    return result.rows;
+}
 
 export type WalletBalance = Pick<TransitWallet, 'wallet_id' | 'user_id' | 'balance_credits'>;
 

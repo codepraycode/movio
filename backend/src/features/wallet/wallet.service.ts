@@ -1,7 +1,12 @@
 import * as walletModel from './wallet.model';
 import { NotFoundError } from '../../shared/errors';
-import type { WalletBalance } from './wallet.model';
+import type { WalletBalance, WalletTransaction } from './wallet.model';
 import type { TopupCashResult } from './wallet.types';
+
+/** A user's own credit transaction history, newest first. */
+export async function getTransactionHistory(userId: string): Promise<WalletTransaction[]> {
+    return walletModel.findTransactionsByUserId(userId);
+}
 
 /**
  * The logged-in student's own wallet balance (credits = number of trips they can

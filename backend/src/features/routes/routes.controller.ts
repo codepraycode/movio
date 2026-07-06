@@ -33,6 +33,20 @@ export async function listRoutes(_req: Request, res: Response, next: NextFunctio
 }
 
 /**
+ * GET /api/v1/routes
+ * Read-only, any authenticated user. Students' route/schedule screen (MOB-8/
+ * PSD-158) reads this; only active routes are returned.
+ */
+export async function listActiveRoutes(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const routes = await routesService.listActiveRoutes();
+        sendSuccess(res, routes, 'Routes retrieved');
+    } catch (err) {
+        next(err);
+    }
+}
+
+/**
  * PATCH /api/v1/admin/routes/:id
  * req.body is a validated UpdateRouteDto. Admin JWT required.
  */

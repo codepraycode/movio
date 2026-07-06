@@ -12,7 +12,7 @@ import tripsRoutes, { adminTripsRouter } from './features/trips/trips.routes';
 import { adminReportsRouter } from './features/reports/reports.routes';
 import { adminVehiclesRouter } from './features/vehicles/vehicles.routes';
 import { adminUsersRouter } from './features/users/users.routes';
-import { adminRoutesRouter } from './features/routes/routes.routes';
+import { adminRoutesRouter, routesRouter } from './features/routes/routes.routes';
 
 const app = express();
 
@@ -32,6 +32,7 @@ app.use('/api/v1/boarding', boardingRoutes);
 app.use('/api/v1/tracking', trackingRoutes);
 app.use('/api/v1/wallet', walletRoutes);
 app.use('/api/v1/complaints', complaintsRoutes);
+app.use('/api/v1/routes', routesRouter);
 logger.debug('Public routes mounted');
 
 // Admin API routes

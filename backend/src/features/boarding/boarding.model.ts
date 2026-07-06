@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { query, pool } from '../../config/db';
 import type { BoardingEvent, NfcCredential, TransitWallet, User } from '../../types';
+import type { StudentTripRow } from './boarding.types';
 
 export { pool };
 
@@ -88,6 +89,31 @@ export async function countOnboard(tripId: string): Promise<number> {
         [tripId]
     );
     return result.rows[0].count;
+}
+
+/**
+ * A student's own boarding history, newest first, with the trip context (vehicle,
+ * driver, route) needed to account for each credit spent. LEFT JOIN on routes:
+ * a trip can legitimately have no route assigned.
+ */
+export async function findTripHistoryByStudent(studentId: string, limit = 100): Promise<StudentTripRow[]> {
+    const result = await query<StudentTripRow>(
+        `SELECT be.event_id, be.trip_id, be.boarded_at, be.alighted_at,
+                t.status AS trip_status,
+                v.plate_number, v.vehicle_type,
+                r.route_name,
+                d.first_name AS driver_first_name, d.last_name AS driver_last_name
+         FROM boarding_events be
+         JOIN trips t ON t.trip_id = be.trip_id
+         JOIN vehicles v ON v.vehicle_id = t.vehicle_id
+         JOIN users d ON d.user_id = t.driver_id
+         LEFT JOIN routes r ON r.route_id = t.route_id
+         WHERE be.student_id = $1
+         ORDER BY be.boarded_at DESC
+         LIMIT $2`,
+        [studentId, limit]
+    );
+    return result.rows;
 }
 
 export type NewBoardingEvent = Pick<BoardingEvent, 'event_id' | 'boarded_at'>;

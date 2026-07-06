@@ -13,10 +13,15 @@ import '../../shared/widgets/double_back_to_exit.dart';
 import '../../shared/widgets/entrance.dart';
 import '../../shared/widgets/loaders/shimmer_box.dart';
 import '../auth/state/auth_provider.dart';
+import '../complaints/screens/complaint_screen.dart';
 import '../nfc/data/nfc_capability_service.dart';
 import '../nfc/screens/nfc_setup_screen.dart';
+import '../profile/screens/profile_screen.dart';
+import '../routes/screens/routes_screen.dart';
 import '../tracking/screens/live_map_screen.dart';
+import '../trips/screens/my_trips_screen.dart';
 import '../wallet/data/wallet_repository.dart';
+import '../wallet/screens/credit_history_screen.dart';
 
 /// Home landing shown once authenticated. The student's transit hub: how much
 /// Transit Credit they hold, boarding, spend history, reporting, and a live view
@@ -131,21 +136,48 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   Entrance(
                     delay: const Duration(milliseconds: 240),
-                    child: const Row(
+                    child: Row(
                       children: [
                         Expanded(
                           child: _MiniTile(
                             icon: Icons.receipt_long_rounded,
                             title: 'My trips',
                             subtitle: 'Credits you’ve spent',
+                            screenBuilder: () => const MyTripsScreen(),
                           ),
                         ),
-                        SizedBox(width: AppSpacing.lg),
+                        const SizedBox(width: AppSpacing.lg),
                         Expanded(
                           child: _MiniTile(
                             icon: Icons.flag_outlined,
                             title: 'Report',
                             subtitle: 'Tell us what happened',
+                            screenBuilder: () => const ComplaintScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Entrance(
+                    delay: const Duration(milliseconds: 300),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _MiniTile(
+                            icon: Icons.route_rounded,
+                            title: 'Routes',
+                            subtitle: 'Lines & stops on campus',
+                            screenBuilder: () => const RoutesScreen(),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.lg),
+                        Expanded(
+                          child: _MiniTile(
+                            icon: Icons.swap_vert_rounded,
+                            title: 'Credit history',
+                            subtitle: 'Top-ups & trip fares',
+                            screenBuilder: () => const CreditHistoryScreen(),
                           ),
                         ),
                       ],
@@ -228,12 +260,18 @@ class _GreetingBar extends StatelessWidget {
             ],
           ),
         ),
+        // Profile (logout now lives inside the profile screen, confirmed).
         Material(
           color: AppColors.surface,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
-            onTap: () => context.read<AuthProvider>().logout(),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
             child: Container(
               height: 42,
               width: 42,
@@ -241,8 +279,8 @@ class _GreetingBar extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.line),
               ),
-              child: const Icon(Icons.logout_rounded,
-                  size: 19, color: AppColors.inkMuted),
+              child: const Icon(Icons.person_outline_rounded,
+                  size: 20, color: AppColors.inkMuted),
             ),
           ),
         ),
@@ -681,16 +719,20 @@ class _LiveBadge extends StatelessWidget {
 
 // ─── Secondary tiles ─────────────────────────────────────────────────────────
 
+/// A small navigation tile — every one of these now opens a real screen
+/// (My trips, Report, Routes, Credit history), so the "Soon" tag is gone.
 class _MiniTile extends StatelessWidget {
   const _MiniTile({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.screenBuilder,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Widget Function() screenBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -699,7 +741,12 @@ class _MiniTile extends StatelessWidget {
       borderRadius: AppRadius.brLg,
       child: InkWell(
         borderRadius: AppRadius.brLg,
-        onTap: () => _soon(context, title),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => screenBuilder()),
+          );
+        },
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -719,47 +766,17 @@ class _MiniTile extends StatelessWidget {
                 child: Icon(icon, color: AppColors.brand700, size: 20),
               ),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.titleMd),
-                  ),
-                  const SizedBox(width: 6),
-                  const _SoonTag(),
-                ],
-              ),
+              Text(title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.titleMd),
               const SizedBox(height: 2),
-              Text(subtitle, style: AppTypography.caption),
+              Text(subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Shared bits ─────────────────────────────────────────────────────────────
-
-class _SoonTag extends StatelessWidget {
-  const _SoonTag();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.lineSoft,
-        borderRadius: AppRadius.brSm,
-      ),
-      child: Text(
-        'Soon',
-        style: AppTypography.caption.copyWith(
-          color: AppColors.inkMuted,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );

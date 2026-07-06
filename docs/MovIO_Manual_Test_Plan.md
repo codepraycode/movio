@@ -246,6 +246,50 @@ Home's "Board a trip" card routes into the tap-to-board setup flow: an animated 
 
 ---
 
+## 18. Mobile Complaint Submission (`PSD-105` / MOB-7 → BE-8)
+
+Home's "Report" tile opens a complaint form: required description, optional trip reference picked from the student's recent boardings (a bottom sheet — never a raw UUID field). Posts to the existing `POST /complaints`. Backend rows verified live 2026-07-06 with curl (sim-student-1 JWT → admin JWT round-trip).
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| MCOMP-01 | Student JWT | POST `/complaints` `{description:"Bus arrived 20 minutes late", trip_id:<real>}` | 201, complaint `open`, trip_id stored | Verified live — complaint `cd4dc97a…` created | Pass |
+| MCOMP-02 | MCOMP-01 done, admin JWT | GET `/admin/complaints` (what FE-10's screen reads) | The new complaint appears with student name + trip link | Verified live — present with `Sim Student 1` + trip_id | Pass |
+| MCOMP-03 | Student JWT | POST `/complaints` with empty body | 422 validation error, nothing stored | Verified live — 422 | Pass |
+| MCOMP-04 | App on device, logged in | Home → Report → describe issue → (optionally) link a recent trip → Send | Success snackbar, screen pops; complaint visible on dashboard Complaints screen | | |
+| MCOMP-05 | Device offline | Submit a complaint | Friendly error snackbar, form keeps the typed text, no crash | | |
+| MCOMP-06 | Student with no trips / trips fetch fails | Open Report screen | Trip picker simply absent; description-only submission still works | | |
+
+---
+
+## 19. Mobile My Trips + Credit History + Profile
+
+New student-facing reads: `GET /boarding/my-trips` (each boarding with vehicle, driver, route, tap-in/out times — the account of credits spent) and `GET /wallet/transactions` (top-ups in, fares out). Profile screen replaces home's bare logout icon (logout now confirmed via dialog, from Profile). Backend rows verified live 2026-07-06.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| MTRIP-01 | Student JWT with boardings | GET `/boarding/my-trips` | Rows newest-first with plate, vehicle_type, route_name, driver name, boarded_at/alighted_at | Verified live — 35 rows, shape confirmed | Pass |
+| MTRIP-02 | No token / admin token | GET `/boarding/my-trips` | 401 / 403 | Verified live — 401, 403 | Pass |
+| MTRIP-03 | App on device | Home → My trips | Trip cards match MTRIP-01 data; open boarding on an active trip shows ABOARD; others show −1 credit | | |
+| MWALL-01 | Student JWT with activity | GET `/wallet/transactions` | Rows newest-first; top-ups positive, boarding deductions −1 | Verified live — 47 rows (+5 top-up, −1 fares) | Pass |
+| MWALL-02 | App on device | Home → Credit history | Balance header matches `GET /wallet`; list matches MWALL-01; credits green with +, fares neutral | | |
+| MPROF-01 | App on device | Home → profile icon | Profile shows real name/initials/role/matric/email; links open NFC status, My trips, Credit history, Routes | | |
+| MPROF-02 | On Profile | Log out → confirm | Dialog first; on confirm, app unwinds to login screen (not a stale pushed screen); token cleared | | |
+
+---
+
+## 20. Mobile Route Info (`PSD-158` / MOB-8)
+
+New read-only `GET /api/v1/routes` (any authenticated user; active routes only) + a routes screen with expandable stop timelines and an honest "no timetable — see the live map" note (no schedule data exists in the system; none is invented).
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| MROUTE-01 | Routes created via FE-7 exist | GET `/routes` with student JWT | 200; active routes with name + ordered stops JSONB | Verified live — FE-7 seeded route returned with stops | Pass |
+| MROUTE-02 | — | GET `/routes` without token | 401 | Verified live | Pass |
+| MROUTE-03 | Admin deactivates a route (FE-7 PATCH) | GET `/routes` again | Deactivated route no longer listed (admin GET still shows it) | | |
+| MROUTE-04 | App on device | Home → Routes | Route cards expand to a stop timeline (terminals emphasised); live-map hint opens the map | | |
+
+---
+
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
 
 | Category | Total Cases | Passed | Failed | Notes |

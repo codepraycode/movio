@@ -11,6 +11,10 @@ export async function listRoutes(): Promise<Route[]> {
     return routesModel.listRoutes();
 }
 
+export async function listActiveRoutes(): Promise<Route[]> {
+    return routesModel.listActiveRoutes();
+}
+
 export async function updateRoute(routeId: string, patch: RoutePatch): Promise<Route> {
     const updated = await routesModel.updateRoute(routeId, patch);
     if (!updated) {

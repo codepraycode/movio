@@ -1,7 +1,21 @@
 import type { Request, Response, NextFunction } from 'express';
-import { topupCash as runTopupCash, getWalletBalance } from './wallet.service';
+import { topupCash as runTopupCash, getWalletBalance, getTransactionHistory } from './wallet.service';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
 import type { TopupCashDto } from './wallet.types';
+
+/**
+ * GET /api/v1/wallet/transactions
+ * The authenticated user's own credit transaction history (top-ups in,
+ * boarding deductions out) — the mobile credit-history screen.
+ */
+export async function getMyTransactions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const transactions = await getTransactionHistory(req.user!.user_id);
+        sendSuccess(res, transactions, 'Transaction history retrieved');
+    } catch (err) {
+        next(err);
+    }
+}
 
 /**
  * GET /api/v1/wallet

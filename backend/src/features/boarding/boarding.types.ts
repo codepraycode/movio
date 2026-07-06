@@ -18,6 +18,24 @@ export class BoardingDto {
     longitude?: number;
 }
 
+/**
+ * One row of a student's own trip history (GET /boarding/my-trips, MOB-7's
+ * "My trips" screen): each boarding event with the trip's vehicle, driver and
+ * route so the student can account for every credit spent.
+ */
+export interface StudentTripRow {
+    event_id: string;
+    trip_id: string;
+    boarded_at: Date;
+    alighted_at: Date | null;
+    trip_status: string;
+    plate_number: string;
+    vehicle_type: string;
+    route_name: string | null;
+    driver_first_name: string;
+    driver_last_name: string;
+}
+
 export interface BoardingResult {
     success: boolean;
     /**

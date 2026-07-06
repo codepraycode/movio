@@ -13,7 +13,7 @@ class Env {
   Env._();
 
   /// Detected LAN IP at scaffold time. Override per-network with --dart-define.
-  static const String _defaultBaseUrl = 'http://192.168.218.233:4000/api/v1';
+  static const String _defaultBaseUrl = 'http://192.168.132.233:4000/api/v1';
 
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -42,4 +42,16 @@ class ApiRoutes {
 
   /// The logged-in student's own transit wallet balance (JWT-required).
   static const String wallet = '/wallet';
+
+  /// The logged-in user's credit transaction history (JWT-required).
+  static const String walletTransactions = '/wallet/transactions';
+
+  /// The logged-in student's own boarding/trip history (JWT-required).
+  static const String myTrips = '/boarding/my-trips';
+
+  /// Submit a complaint (student JWT required).
+  static const String complaints = '/complaints';
+
+  /// Active routes with their stops (JWT-required, read-only).
+  static const String routes = '/routes';
 }

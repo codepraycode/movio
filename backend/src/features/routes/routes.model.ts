@@ -16,6 +16,14 @@ export async function listRoutes(): Promise<Route[]> {
     return result.rows;
 }
 
+/** Active routes only — what students see (deactivated routes stay admin-only). */
+export async function listActiveRoutes(): Promise<Route[]> {
+    const result = await query<Route>(
+        `SELECT * FROM routes WHERE is_active = true ORDER BY route_name`
+    );
+    return result.rows;
+}
+
 export async function findRouteById(routeId: string): Promise<Route | undefined> {
     const result = await query<Route>(`SELECT * FROM routes WHERE route_id = $1`, [routeId]);
     return result.rows[0];

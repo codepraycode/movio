@@ -1,9 +1,23 @@
 import type { Request, Response, NextFunction } from 'express';
 import { authenticateBoarding as runBoardingAuth } from './boarding.service';
-import { countOnboard } from './boarding.model';
+import { countOnboard, findTripHistoryByStudent } from './boarding.model';
 import { emitPassengerUpdate } from './boarding.socket';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
 import type { BoardingDto } from './boarding.types';
+
+/**
+ * GET /api/v1/boarding/my-trips
+ * The authenticated student's own boarding history (MOB-7 "My trips") —
+ * requireAuth + requireRole('student') applied in boarding.routes.ts.
+ */
+export async function getMyTrips(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const trips = await findTripHistoryByStudent(req.user!.user_id);
+        sendSuccess(res, trips, 'Trip history retrieved');
+    } catch (err) {
+        next(err);
+    }
+}
 
 /**
  * POST /api/v1/boarding/authenticate
