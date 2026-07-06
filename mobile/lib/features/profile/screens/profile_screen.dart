@@ -12,9 +12,11 @@ import '../../../shared/widgets/entrance.dart';
 import '../../../shared/widgets/screen_header.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/state/auth_provider.dart';
+import '../../legal/legal_content.dart';
 import '../../nfc/data/nfc_capability_service.dart';
 import '../../nfc/screens/nfc_setup_screen.dart';
 import '../../routes/screens/routes_screen.dart';
+import '../../support/screens/help_screen.dart';
 import '../../trips/screens/my_trips_screen.dart';
 import '../../wallet/screens/credit_history_screen.dart';
 
@@ -149,7 +151,33 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Entrance(
-                        delay: const Duration(milliseconds: 180),
+                        delay: const Duration(milliseconds: 160),
+                        child: _Section(
+                          title: 'LEGAL & SUPPORT',
+                          children: [
+                            _LinkRow(
+                              icon: Icons.help_outline_rounded,
+                              label: 'Help & support',
+                              onTap: () =>
+                                  _push(context, const HelpScreen()),
+                            ),
+                            _LinkRow(
+                              icon: Icons.description_outlined,
+                              label: 'Terms of Service',
+                              onTap: () => _push(context, LegalContent.terms()),
+                            ),
+                            _LinkRow(
+                              icon: Icons.privacy_tip_outlined,
+                              label: 'Privacy Policy',
+                              onTap: () =>
+                                  _push(context, LegalContent.privacy()),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Entrance(
+                        delay: const Duration(milliseconds: 200),
                         child: _Section(
                           title: 'ABOUT',
                           children: [

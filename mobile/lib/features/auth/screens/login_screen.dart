@@ -27,6 +27,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // If we're back at login because a session expired mid-use (401), say so —
+    // once. Deferred to after the first frame so a SnackBar has a Scaffold.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthProvider>();
+      if (auth.sessionExpired) {
+        auth.acknowledgeSessionExpired();
+        AppSnackbar.info(
+          context,
+          'Your session expired. Please sign in again.',
+        );
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _email.dispose();
     _password.dispose();

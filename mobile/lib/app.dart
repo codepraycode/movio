@@ -7,6 +7,7 @@ import 'features/auth/state/auth_provider.dart';
 import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/splash/splash_screen.dart';
+import 'shared/widgets/connectivity_banner.dart';
 
 /// Root of the app: applies the theme and hands off to [AuthGate].
 class MovIOApp extends StatelessWidget {
@@ -18,6 +19,10 @@ class MovIOApp extends StatelessWidget {
       title: 'MovIO',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      // The connectivity banner wraps every screen once, here, so no individual
+      // screen has to think about the offline state (MOB-9).
+      builder: (context, child) =>
+          ConnectivityBanner(child: child ?? const SizedBox.shrink()),
       home: const AuthGate(),
     );
   }

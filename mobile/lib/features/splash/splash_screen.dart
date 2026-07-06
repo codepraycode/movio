@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             Text(
-                              'Smart campus transport',
+                              'Mobility Optimization Via Intelligence Operations',
                               style: AppTypography.bodyMd.copyWith(color: AppColors.brand100),
                             ),
                           ],

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'core/network/connectivity_service.dart';
 import 'core/theme/app_system_ui.dart';
 import 'features/auth/state/auth_provider.dart';
 
@@ -21,6 +22,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: const MovIOApp(),
     ),

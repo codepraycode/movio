@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/token_storage.dart';
 import '../data/auth_models.dart';
@@ -25,7 +26,12 @@ enum AuthStatus {
 class AuthProvider extends ChangeNotifier {
   AuthProvider({AuthRepository? repository, TokenStorage? storage})
       : _repo = repository ?? AuthRepository(),
-        _storage = storage ?? TokenStorage();
+        _storage = storage ?? TokenStorage() {
+    // Self-register the 401 hook so any expired-token response from any feature's
+    // ApiClient routes back here to sign out cleanly. Single AuthProvider, so a
+    // single static callback is enough.
+    ApiClient.onUnauthorized = handleUnauthorized;
+  }
 
   final AuthRepository _repo;
   final TokenStorage _storage;
@@ -36,6 +42,7 @@ class AuthProvider extends ChangeNotifier {
   bool _onboarded = false; // has the intro been seen on this device?
   bool _submitting = false; // a login/register request is in flight
   String? _errorMessage; // last failure, for the screen to surface
+  bool _sessionExpired = false; // set when a 401 forced a logout mid-session
 
   AuthStatus get status => _status;
   AuthUser? get user => _user;
@@ -44,6 +51,11 @@ class AuthProvider extends ChangeNotifier {
   bool get submitting => _submitting;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  /// True once between an expiry-triggered logout and the login screen showing
+  /// its notice. The login screen reads this, tells the user, then calls
+  /// [acknowledgeSessionExpired] so it only surfaces once.
+  bool get sessionExpired => _sessionExpired;
 
   /// Read any persisted session at startup. Because the JWT lives in secure
   /// storage, a returning student skips the login screen entirely.
@@ -95,8 +107,31 @@ class AuthProvider extends ChangeNotifier {
     await _storage.clear();
     _token = null;
     _user = null;
+    _sessionExpired = false;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
+  }
+
+  /// Called (via [ApiClient.onUnauthorized]) when an authenticated request comes
+  /// back 401 — the JWT has expired or been revoked. Drops the session and flags
+  /// [sessionExpired] so login can explain why the user is back at the door.
+  /// No-ops if we're already signed out, so a burst of failing calls only logs
+  /// out once.
+  void handleUnauthorized() {
+    if (_status != AuthStatus.authenticated) return;
+    _sessionExpired = true;
+    _token = null;
+    _user = null;
+    _status = AuthStatus.unauthenticated;
+    // Fire-and-forget: clearing storage needn't block the state flip.
+    _storage.clear();
+    notifyListeners();
+  }
+
+  /// Login screen calls this after it has shown the "session expired" notice, so
+  /// the message doesn't reappear on the next rebuild.
+  void acknowledgeSessionExpired() {
+    _sessionExpired = false;
   }
 
   /// Shared submit path for login/register: toggles [submitting], persists the

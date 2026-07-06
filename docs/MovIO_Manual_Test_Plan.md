@@ -290,6 +290,24 @@ New read-only `GET /api/v1/routes` (any authenticated user; active routes only) 
 
 ---
 
+## 21. Graceful No-Network + Session Handling (`PSD-159` / MOB-9)
+
+Global connectivity banner (offline notice + "back online" confirmation) wired once via `MaterialApp.builder`, plus an authenticated-401 → clean sign-out path (`ApiClient.onUnauthorized` → `AuthProvider.handleUnauthorized`). Also new production account screens (Terms, Privacy, Help & Support). No profile picture is collected, by design.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| MOB-T07 | App open on device, online | Turn Wi-Fi/data **off** while using any screen | App does not crash/hang; a dark "No internet connection" banner slides down and stays | | |
+| MOB-T07b | From MOB-T07 (offline) | Turn connectivity back **on** | Banner switches to green "Back online" briefly, then slides away | | |
+| MOB-T07c | Offline | Trigger a data action (pull-to-refresh wallet, open My trips) | Friendly error state ("Can't reach the server…"/"Couldn't load…"), retry works once back online — never a raw crash | | |
+| SESS-01 | Logged in; backend JWT expired or revoked | Trigger any authenticated call (refresh home, open trips) | App signs out and returns to login with an "Your session expired. Please sign in again." notice | | |
+| SESS-02 | Logged out, at login | Enter a **wrong** password | Shows "invalid credentials" error; does **not** show the session-expired notice and does not loop | | |
+| LEGAL-01 | App on device | Profile → Terms of Service / Privacy Policy | Each opens a readable document with a "Last updated" stamp; Privacy states no profile picture is collected | | |
+| LEGAL-02 | App on device | Profile → Help & support | FAQ expands; "Report an issue" opens the complaint flow | | |
+
+Automated (this branch): `test/network_handling_test.dart` — network failure surfaces a friendly `ApiException`; a token-carrying 401 fires `onUnauthorized`; a tokenless (login) 401 does **not**. `flutter analyze` + `flutter test` clean.
+
+---
+
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
 
 | Category | Total Cases | Passed | Failed | Notes |

@@ -25,30 +25,46 @@ class ApiClient {
 
   static const Duration _timeout = Duration(seconds: 15);
 
+  /// Fired once when an *authenticated* request (one that carried a token) comes
+  /// back 401 — i.e. the JWT expired or was revoked. The app registers this in
+  /// startup to sign the user out and route them back to login, rather than
+  /// letting every screen hit a wall of failing calls. Set to null by default so
+  /// tests and the login/register flow (which send no token) are unaffected.
+  static void Function()? onUnauthorized;
+
   /// POST [path] with a JSON [body]. Returns the decoded `data` object.
   Future<Map<String, dynamic>> post(
     String path, {
     required Map<String, dynamic> body,
     String? token,
   }) async {
-    final data = await _send(() => _http.post(
-          _uri(path),
-          headers: _headers(token),
-          body: jsonEncode(body),
-        ));
+    final data = await _send(
+      () => _http.post(
+        _uri(path),
+        headers: _headers(token),
+        body: jsonEncode(body),
+      ),
+      authed: token != null,
+    );
     return (data as Map<String, dynamic>?) ?? const {};
   }
 
   /// GET [path]. Returns the decoded `data` object.
   Future<Map<String, dynamic>> get(String path, {String? token}) async {
-    final data = await _send(() => _http.get(_uri(path), headers: _headers(token)));
+    final data = await _send(
+      () => _http.get(_uri(path), headers: _headers(token)),
+      authed: token != null,
+    );
     return (data as Map<String, dynamic>?) ?? const {};
   }
 
   /// GET [path] where the backend's `data` is a JSON array (e.g. list endpoints
   /// like `/tracking/active`). Returns the raw list of decoded elements.
   Future<List<dynamic>> getList(String path, {String? token}) async {
-    final data = await _send(() => _http.get(_uri(path), headers: _headers(token)));
+    final data = await _send(
+      () => _http.get(_uri(path), headers: _headers(token)),
+      authed: token != null,
+    );
     return (data as List<dynamic>?) ?? const [];
   }
 
@@ -64,8 +80,9 @@ class ApiClient {
   /// unwraps the success/error envelope. Returns the raw `data` payload (an
   /// object or a list depending on the endpoint); callers cast as appropriate.
   Future<dynamic> _send(
-    Future<http.Response> Function() request,
-  ) async {
+    Future<http.Response> Function() request, {
+    bool authed = false,
+  }) async {
     late http.Response res;
     try {
       res = await request().timeout(_timeout);
@@ -87,6 +104,14 @@ class ApiClient {
     final success = json['success'] == true;
     if (success && res.statusCode >= 200 && res.statusCode < 300) {
       return json['data'];
+    }
+
+    // A token-carrying request that comes back 401 means the session is no
+    // longer valid — tell the app to sign out so the user re-authenticates
+    // instead of bouncing off failing calls. (Login/register send no token, so
+    // their "wrong credentials" 401 never trips this.)
+    if (res.statusCode == 401 && authed) {
+      onUnauthorized?.call();
     }
 
     // Failure envelope: surface the backend's message + any per-field details.

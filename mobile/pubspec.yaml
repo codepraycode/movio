@@ -1,5 +1,5 @@
 name: movio_mobile
-description: "MovIO — Smart Campus Transport student app for FUTA."
+description: "MovIO — Mobility Optimization Via Intelligence Operations."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -54,6 +54,12 @@ dependencies:
 
   # Encrypted, Keystore-backed storage for the auth JWT (not plaintext prefs).
   flutter_secure_storage: ^9.2.2
+
+  # Detects when the phone drops/regains a network interface so the app can show
+  # a "no internet" banner instead of hanging silently (MOB-9). Reports interface
+  # availability, not real reachability — the ApiClient still catches a truly
+  # unreachable backend and surfaces a friendly message, so this is additive.
+  connectivity_plus: ^7.2.0
 
 dev_dependencies:
   flutter_test:
