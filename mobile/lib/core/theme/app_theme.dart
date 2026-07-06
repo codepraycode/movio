@@ -36,6 +36,16 @@ class AppTheme {
       fontFamily: AppTypography.sans,
       splashFactory: InkRipple.splashFactory,
 
+      // One global page transition so every pushed screen opens the same
+      // seamless way: a soft fade with a gentle 3% rise instead of the default
+      // full-width platform slide. Reads as instant without a jarring swipe.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _SeamlessPageTransitionsBuilder(),
+          TargetPlatform.iOS: _SeamlessPageTransitionsBuilder(),
+        },
+      ),
+
       textTheme: const TextTheme(
         displayLarge: AppTypography.displayLg,
         headlineLarge: AppTypography.headingLg,
@@ -124,6 +134,38 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
         contentTextStyle: AppTypography.bodyMd.copyWith(color: AppColors.onBrand),
+      ),
+    );
+  }
+}
+
+/// A calm fade + slight upward slide used for every route push (wired via
+/// [ThemeData.pageTransitionsTheme]). Cheap to run and consistent across the
+/// app, so navigation feels seamless rather than a heavy platform slide.
+class _SeamlessPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _SeamlessPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
       ),
     );
   }

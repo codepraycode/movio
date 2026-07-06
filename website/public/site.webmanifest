@@ -1,0 +1,19 @@
+{
+  "name": "Movio — Smart campus transport for FUTA",
+  "short_name": "Movio",
+  "description": "Live shuttle tracking and tap-to-board for the FUTA campus.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#16a34a",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

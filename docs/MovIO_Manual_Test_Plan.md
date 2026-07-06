@@ -303,6 +303,10 @@ Global connectivity banner (offline notice + "back online" confirmation) wired o
 | SESS-02 | Logged out, at login | Enter a **wrong** password | Shows "invalid credentials" error; does **not** show the session-expired notice and does not loop | | |
 | LEGAL-01 | App on device | Profile → Terms of Service / Privacy Policy | Each opens a readable document with a "Last updated" stamp; Privacy states no profile picture is collected | | |
 | LEGAL-02 | App on device | Profile → Help & support | FAQ expands; "Report an issue" opens the complaint flow | | |
+| LEGAL-03 | At Register screen (before any account) | Tap "Terms of Service" / "Privacy Policy" in the consent line | Each document opens and is readable without signing up; back returns to the form with entries intact | | |
+| UX-01 | On Profile | Tap Log out → confirm | The logout button shows an inline spinner ("Logging out…") and can't be re-tapped; app then lands on login | | |
+| UX-02 | Anywhere | Push any screen (profile, trips, a document) | Transition is a soft fade + slight rise (seamless), not a heavy full-width slide | | |
+| UX-03 | Register screen | Focus First/Last name fields | Placeholder hints ("Enter your first name/last name") visible until typing | | |
 
 Automated (this branch): `test/network_handling_test.dart` — network failure surfaces a friendly `ApiException`; a token-carrying 401 fires `onUnauthorized`; a tokenless (login) 401 does **not**. `flutter analyze` + `flutter test` clean.
 

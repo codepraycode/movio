@@ -23,8 +23,15 @@ import '../../wallet/screens/credit_history_screen.dart';
 /// Profile & settings: who's signed in, their account details, shortcuts into
 /// the transit features, and the (confirmed) way out. Replaces the bare logout
 /// icon that used to sit on the home greeting bar.
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _loggingOut = false;
 
   void _push(BuildContext context, Widget screen) {
     HapticFeedback.selectionClick();
@@ -40,7 +47,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  Future<void> _confirmLogout() async {
     HapticFeedback.selectionClick();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -66,11 +73,16 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !mounted) return;
+    // Show the button's spinner while the session is torn down. logout() clears
+    // secure storage and flips auth state; awaiting it means the preloader is
+    // truthful even if the storage write is briefly slow.
+    setState(() => _loggingOut = true);
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
     // Pushed routes on the root navigator outlive an AuthGate swap — unwind to
     // home first so logout lands on the login screen, not a stale profile.
     Navigator.of(context).popUntil((r) => r.isFirst);
-    await context.read<AuthProvider>().logout();
   }
 
   @override
@@ -199,7 +211,9 @@ class ProfileScreen extends StatelessWidget {
                       Entrance(
                         delay: const Duration(milliseconds: 240),
                         child: _LogoutButton(
-                            onTap: () => _confirmLogout(context)),
+                          loading: _loggingOut,
+                          onTap: _confirmLogout,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
                     ],
@@ -425,9 +439,10 @@ class _LinkRow extends StatelessWidget {
 }
 
 class _LogoutButton extends StatelessWidget {
-  const _LogoutButton({required this.onTap});
+  const _LogoutButton({required this.onTap, this.loading = false});
 
   final VoidCallback onTap;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -436,7 +451,8 @@ class _LogoutButton extends StatelessWidget {
       borderRadius: AppRadius.brMd,
       child: InkWell(
         borderRadius: AppRadius.brMd,
-        onTap: onTap,
+        // Disabled while logging out so it can't be double-tapped.
+        onTap: loading ? null : onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           decoration: BoxDecoration(
@@ -446,13 +462,29 @@ class _LogoutButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.logout_rounded,
-                  size: 19, color: AppColors.error),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Log out',
-                style: AppTypography.button.copyWith(color: AppColors.error),
-              ),
+              if (loading) ...[
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    valueColor: AlwaysStoppedAnimation(AppColors.error),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Logging out…',
+                  style: AppTypography.button.copyWith(color: AppColors.error),
+                ),
+              ] else ...[
+                const Icon(Icons.logout_rounded,
+                    size: 19, color: AppColors.error),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Log out',
+                  style: AppTypography.button.copyWith(color: AppColors.error),
+                ),
+              ],
             ],
           ),
         ),

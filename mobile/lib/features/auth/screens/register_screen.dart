@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,6 +12,7 @@ import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/double_back_to_exit.dart';
 import '../../../shared/widgets/entrance.dart';
 import '../../../shared/widgets/primary_button.dart';
+import '../../legal/legal_content.dart';
 import '../state/auth_provider.dart';
 import '../widgets/auth_scaffold.dart';
 
@@ -89,6 +91,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               field(AppTextField(
                 label: 'First name',
                 controller: _firstName,
+                hint: 'Enter your first name',
                 prefixIcon: Icons.person_outline,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
@@ -98,6 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               field(AppTextField(
                 label: 'Last name',
                 controller: _lastName,
+                hint: 'Enter your last name',
                 prefixIcon: Icons.person_outline,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
@@ -168,7 +172,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) => Validators.confirmPassword(v, _password.text),
                 onFieldSubmitted: (_) => _submit(),
               )),
-              const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: AppSpacing.xl),
+              field(const _ConsentLine()),
+              const SizedBox(height: AppSpacing.lg),
               field(PrimaryButton(
                 label: 'Create account',
                 loading: submitting,
@@ -194,6 +200,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The "by creating an account you agree…" line, with Terms and Privacy readable
+/// *before* signing up (the documents open as pushed screens). Stateful so the
+/// tap recognizers are created once and disposed cleanly.
+class _ConsentLine extends StatefulWidget {
+  const _ConsentLine();
+
+  @override
+  State<_ConsentLine> createState() => _ConsentLineState();
+}
+
+class _ConsentLineState extends State<_ConsentLine> {
+  late final TapGestureRecognizer _terms = TapGestureRecognizer()
+    ..onTap = () => _open(LegalContent.terms());
+  late final TapGestureRecognizer _privacy = TapGestureRecognizer()
+    ..onTap = () => _open(LegalContent.privacy());
+
+  void _open(Widget doc) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => doc));
+  }
+
+  @override
+  void dispose() {
+    _terms.dispose();
+    _privacy.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final linkStyle = AppTypography.caption.copyWith(
+      color: AppColors.brand700,
+      fontWeight: FontWeight.w600,
+      decoration: TextDecoration.underline,
+      decorationColor: AppColors.brand700,
+    );
+
+    return Text.rich(
+      TextSpan(
+        style: AppTypography.caption,
+        children: [
+          const TextSpan(text: 'By creating an account, you agree to our '),
+          TextSpan(text: 'Terms of Service', style: linkStyle, recognizer: _terms),
+          const TextSpan(text: ' and '),
+          TextSpan(text: 'Privacy Policy', style: linkStyle, recognizer: _privacy),
+          const TextSpan(text: '.'),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }

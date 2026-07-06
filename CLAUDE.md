@@ -22,3 +22,33 @@ Everything above this line is pulled in automatically from `AGENTS.md` — that 
 - Auto memory is on by default in recent Claude Code versions and will pick up recurring corrections on its own — but don't rely on it for anything load-bearing. If something matters every session, put it in `AGENTS.md` explicitly rather than hoping auto memory caught it.
 - At the end of a session, update the "Where things stand" checklist in `AGENTS.md` before you stop — that's what lets the next session (yours or mine) resume without re-deriving project state.
 - To have good understanding of the project, examine the brief at docs/project_brief.md.
+
+## Claude-Code-specific notes for website and dashboard
+
+### UI & Component Management
+- **Initialize shadcn/ui:** `yarn dlx shadcn@latest init`
+- **Add Core Components:** `yarn dlx shadcn@latest add button card input label textarea radio-group checkbox progress toast badge separator`
+
+## 2. Technical Stack & Architecture
+
+### Stack Constraints
+- **Frontend:** React 18+ (Vite) + TypeScript (strict mode)
+- **Styling:** Tailwind CSS + shadcn/ui (Radix Primitives)
+- **Database/Backend:** Supabase JS Client (`@supabase/supabase-js`)
+- **State Management:** Local React `useState` (lifted safely across multi-step flows)
+- **Routing:** React Router v6 (`/` and `/survey`)
+
+### Directory Structure Requirements
+Maintain strict adherence to this structural layout. Notice the migration from `.jsx` to `.tsx`:
+
+### Code Style Archetype
+
+* **Component Definitions:** Use concise functional components (`export const ComponentName = () => { ... }`).
+* **Data Fetching/Mutations:** Explicitly wrap all asynchronous operations tracking Supabase states within `try/catch` wrappers.
+* **State Isolation:** Keep layout and operational primitives highly isolated. Avoid bloated re-renders by collocated states where possible.
+
+### UX & Form Submission Rules
+
+* **Optimistic State Execution:** Show loading states immediately (`isSubmitting`) to prevent multiple clicks and redundant data ingestion.
+* **Conditional Handling:** Ensure the step sequence cuts off gracefully right after the gate question if the user provides a negative use case choice on `transport_frequency` ("Never — I walk or use my own vehicle").
+* **Error Interception:** Parse raw PostgreSQL unique-constraint or validation objects safely before flashing Toast notifications to users.
