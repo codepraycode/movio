@@ -1,5 +1,5 @@
 import { query } from '../../config/db';
-import type { LocationUpdateRow, ActiveTripRow } from './tracking.types';
+import type { LocationUpdateRow, ActiveTripRow, PublicActiveTripRow } from './tracking.types';
 
 export async function insertLocationUpdate(
     tripId: string,
@@ -46,6 +46,42 @@ const ACTIVE_TRIP_SELECT = `
 
 export async function findActiveTripsWithLastLocation(): Promise<ActiveTripRow[]> {
     const result = await query<ActiveTripRow>(`${ACTIVE_TRIP_SELECT} ORDER BY t.start_time DESC`);
+    return result.rows;
+}
+
+// Public variant for the unauthenticated website live map: deliberately omits
+// the driver's name (personal staff data shouldn't be exposed on a page anyone
+// can load). Everything else - vehicle, route, occupancy, position - is safe to
+// show publicly. Kept as a separate SELECT rather than stripping in JS so the
+// query never even reads the users name columns for this path.
+const PUBLIC_ACTIVE_TRIP_SELECT = `
+    SELECT
+        t.trip_id, t.status, t.start_time,
+        v.plate_number, v.vehicle_type, v.capacity,
+        r.route_name,
+        (
+            SELECT COUNT(*)::int
+            FROM boarding_events be
+            WHERE be.trip_id = t.trip_id AND be.alighted_at IS NULL
+        ) AS passenger_count,
+        lu.latitude, lu.longitude, lu.recorded_at AS last_location_at
+    FROM trips t
+    JOIN vehicles v ON v.vehicle_id = t.vehicle_id
+    LEFT JOIN routes r ON r.route_id = t.route_id
+    LEFT JOIN LATERAL (
+        SELECT latitude, longitude, recorded_at
+        FROM location_updates
+        WHERE trip_id = t.trip_id
+        ORDER BY recorded_at DESC
+        LIMIT 1
+    ) lu ON true
+    WHERE t.status = 'active'
+`;
+
+export async function findPublicActiveTrips(): Promise<PublicActiveTripRow[]> {
+    const result = await query<PublicActiveTripRow>(
+        `${PUBLIC_ACTIVE_TRIP_SELECT} ORDER BY t.start_time DESC`
+    );
     return result.rows;
 }
 

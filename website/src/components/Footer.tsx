@@ -115,8 +115,11 @@ export function Footer() {
                     {/* Participate */}
                     <nav className="space-y-3 text-sm">
                         <p className="text-xs font-semibold tracking-wider text-neutral-500 uppercase">
-                            Participate
+                            Explore
                         </p>
+                        <FooterLink to="/live" icon={Radio}>
+                            Live campus map
+                        </FooterLink>
                         <FooterLink to="/survey" icon={ClipboardList}>
                             Take the survey
                         </FooterLink>
@@ -158,19 +161,25 @@ export function Footer() {
 
                 {/* ── Bottom bar ── */}
                 <div className="flex flex-col items-center justify-between gap-3 border-t border-white/10 py-6 text-xs text-neutral-500 sm:flex-row">
-                    <p>© {year} Movio · A Software Engineering final year project · FUTA, Akure</p>
-                    <p className="font-mono">
-                        crafted by{' '}
+                    <p className="text-center sm:text-left">
+                        © {year} Movio · A Software Engineering final year project · FUTA, Akure
+                    </p>
+                    <nav className="flex items-center gap-4">
+                        <Link to="/privacy" className="hover:text-brand-300 transition-colors">
+                            Privacy
+                        </Link>
+                        <Link to="/terms" className="hover:text-brand-300 transition-colors">
+                            Terms
+                        </Link>
                         <a
                             href="https://github.com/codepraycode"
                             target="_blank"
                             rel="noreferrer"
-                            className="hover:text-brand-300 text-neutral-300 transition-colors"
+                            className="hover:text-brand-300 font-mono transition-colors"
                         >
                             codepraycode
-                        </a>{' '}
-                        · 2025/2026 session
-                    </p>
+                        </a>
+                    </nav>
                 </div>
             </div>
         </footer>

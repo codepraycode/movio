@@ -1,5 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
-import { recordLocationUpdate, getActiveTripsWithLocation } from './tracking.service';
+import {
+    recordLocationUpdate,
+    getActiveTripsWithLocation,
+    getPublicActiveTrips,
+} from './tracking.service';
 import { emitLocationUpdate } from './tracking.socket';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
 import type { LocationUpdateDto } from './tracking.types';
@@ -39,6 +43,25 @@ export async function getActiveTrips(
 ): Promise<void> {
     try {
         const trips = await getActiveTripsWithLocation();
+        sendSuccess(res, trips, 'Active trips retrieved');
+    } catch (err) {
+        next(err);
+    }
+}
+
+/**
+ * GET /api/v1/tracking/public/active
+ * Unauthenticated variant for the public website live map. Same active trips,
+ * but with the driver's name removed (see findPublicActiveTrips). No auth here
+ * by design - the campus live map is public-facing on the website.
+ */
+export async function getPublicActiveTripsController(
+    _req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const trips = await getPublicActiveTrips();
         sendSuccess(res, trips, 'Active trips retrieved');
     } catch (err) {
         next(err);

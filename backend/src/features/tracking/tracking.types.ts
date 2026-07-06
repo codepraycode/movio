@@ -26,3 +26,10 @@ export interface ActiveTripRow
     longitude: LocationUpdate['longitude'] | null;
     last_location_at: LocationUpdate['recorded_at'] | null;
 }
+
+/**
+ * The public (unauthenticated) active-trip shape served to the website live map.
+ * Identical to ActiveTripRow minus the driver's name - see findPublicActiveTrips
+ * in tracking.model.ts for why the personal fields are dropped.
+ */
+export type PublicActiveTripRow = Omit<ActiveTripRow, 'driver_first_name' | 'driver_last_name'>;

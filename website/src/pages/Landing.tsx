@@ -19,6 +19,7 @@ import { WaitlistForm } from '@/components/WaitlistForm'
 import { HeroVisual } from '@/components/HeroVisual'
 import { Reveal } from '@/components/Reveal'
 import { LogoMark } from '@/components/Logo'
+import { Seo } from '@/components/Seo'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 
@@ -53,6 +54,11 @@ const features = [
 export function Landing() {
     return (
         <div className="min-h-screen bg-white">
+            <Seo
+                title="Movio — Smart campus transport for FUTA"
+                description="Real-time shuttle tracking and tap-to-board for the FUTA campus. Watch the live campus map, take the student survey, and join the waitlist."
+                path="/"
+            />
             <Navbar />
 
             {/* ───────────────────────── Hero ───────────────────────── */}
@@ -109,15 +115,19 @@ export function Landing() {
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </Link>
-                            <a href="#waitlist" className="w-full sm:w-auto">
+                            <Link to="/live" className="w-full sm:w-auto">
                                 <Button
                                     size="lg"
                                     variant="outline"
                                     className="w-full transition-all hover:-translate-y-0.5 sm:w-auto"
                                 >
-                                    Join the waitlist
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="bg-brand-400 absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" />
+                                        <span className="bg-brand-500 relative inline-flex h-2 w-2 rounded-full" />
+                                    </span>
+                                    Watch it live
                                 </Button>
-                            </a>
+                            </Link>
                         </div>
 
                         <div
