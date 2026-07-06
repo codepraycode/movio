@@ -36,7 +36,7 @@ export function LegalLayout({
 }: LegalLayoutProps) {
     return (
         <div className="flex min-h-screen flex-col bg-white">
-            <Seo title={`${title} — Movio`} description={seoDescription} path={path} />
+            <Seo title={`${title} — Mobility Optimization Via Intelligent Operation | FUTA`} description={seoDescription} path={path} />
             <Navbar />
 
             <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-14 sm:py-20">

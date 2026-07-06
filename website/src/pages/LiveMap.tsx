@@ -251,7 +251,7 @@ export function LiveMap() {
     return (
         <div className="relative h-[100dvh] w-full overflow-hidden bg-[#eae7e1]">
             <Seo
-                title="Live campus map — Movio | FUTA shuttle tracking"
+                title="Live campus map — Mobility Optimization Via Intelligent Operation | FUTA"
                 description="See FUTA campus shuttles, cabs and kekes moving in real time. No sign-in needed — the live Movio map, right in your browser."
                 path="/live"
             />
@@ -300,7 +300,7 @@ export function LiveMap() {
                     <span className="hidden items-center gap-2 rounded-full bg-white/90 px-3 py-2 shadow-md backdrop-blur sm:inline-flex">
                         <LogoMark className="h-5 w-5" />
                         <span className="text-sm font-bold text-neutral-900">
-                            Mov<span className="text-brand-600">IO</span> live
+                            Mov<span className="text-brand-600">IO</span> FUTA MAP
                         </span>
                     </span>
                 </div>

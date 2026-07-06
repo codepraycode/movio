@@ -55,8 +55,8 @@ export function Landing() {
     return (
         <div className="min-h-screen bg-white">
             <Seo
-                title="Movio — Smart campus transport for FUTA"
-                description="Real-time shuttle tracking and tap-to-board for the FUTA campus. Watch the live campus map, take the student survey, and join the waitlist."
+                title="MovIo — Mobility Optimization Via Intelligent Operation | FUTA"
+                description="Real-time vehicle tracking and tap-to-board for the FUTA campus. Watch the live campus map, take the student survey, and join the waitlist."
                 path="/"
             />
             <Navbar />
