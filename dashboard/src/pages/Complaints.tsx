@@ -119,9 +119,27 @@ export default function Complaints() {
                                         className="border-b border-line last:border-0"
                                     >
                                         <td className="px-4 py-3 whitespace-nowrap">
-                                            {c.first_name} {c.last_name}
+                                            {c.student_id ? (
+                                                `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim()
+                                            ) : (
+                                                <span className="flex flex-col">
+                                                    <span className="text-xs font-medium text-ink/60">
+                                                        Guest
+                                                    </span>
+                                                    <span className="text-xs text-ink/50">
+                                                        {c.contact_email ?? c.contact_phone ?? '—'}
+                                                    </span>
+                                                </span>
+                                            )}
                                         </td>
-                                        <td className="px-4 py-3 max-w-xs">{c.description}</td>
+                                        <td className="px-4 py-3 max-w-xs">
+                                            {c.category === 'account_deletion' && (
+                                                <span className="mr-2 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-rose-700 uppercase">
+                                                    Deletion request
+                                                </span>
+                                            )}
+                                            {c.description}
+                                        </td>
                                         <td className="px-4 py-3 font-mono text-xs text-ink/50">
                                             {c.trip_id ? c.trip_id.slice(0, 8) : '—'}
                                         </td>

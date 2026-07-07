@@ -1,7 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as complaintsService from './complaints.service';
 import { sendSuccess } from '../../shared/utils/ApiResponse';
-import type { CreateComplaintDto, UpdateComplaintStatusDto } from './complaints.types';
+import type {
+    CreateComplaintDto,
+    CreateGuestComplaintDto,
+    UpdateComplaintStatusDto,
+} from './complaints.types';
 
 /**
  * POST /api/v1/complaints
@@ -14,6 +18,29 @@ export async function createComplaint(req: Request, res: Response, next: NextFun
     try {
         const complaint = await complaintsService.createComplaint(req.user!.user_id, description, trip_id);
         sendSuccess(res, complaint, 'Complaint submitted', 201);
+    } catch (err) {
+        next(err);
+    }
+}
+
+/**
+ * POST /api/v1/complaints/public  (no login)
+ * Guest complaint or account-deletion request from the website. req.body is a
+ * validated CreateGuestComplaintDto (at least one of contact_email/phone).
+ */
+export async function createGuestComplaint(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { description, trip_id, contact_email, contact_phone, category } =
+        req.body as CreateGuestComplaintDto;
+
+    try {
+        const complaint = await complaintsService.submitGuestComplaint({
+            description,
+            tripId: trip_id,
+            contactEmail: contact_email,
+            contactPhone: contact_phone,
+            category,
+        });
+        sendSuccess(res, complaint, 'Submission received', 201);
     } catch (err) {
         next(err);
     }

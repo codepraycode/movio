@@ -312,6 +312,28 @@ Automated (this branch): `test/network_handling_test.dart` — network failure s
 
 ---
 
+## 22. Website Phase 2 — Top-up, Guest Complaints, Account Deletion
+
+No-login public web features talking to the real backend. Backend migration in `backend/db/schema.sql` (guest-complaint columns + topup_app unique index) must be applied to Supabase, and `PAYSTACK_SECRET_KEY`/`PAYSTACK_PUBLIC_KEY`/`FARE_NAIRA` set, before these pass. Use Paystack **test-mode** cards.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| WEB-TOP-01 | Backend up, Paystack test keys set; a known student matric/email exists | `/topup` → enter matric/email + pick 3 credits → Continue | Confirm screen shows "Topping up for <first name>", 3 credits, ₦600 — no balance/matric shown back | | |
+| WEB-TOP-02 | From WEB-TOP-01 | Pay with a Paystack **test success** card → wait for verify | Receipt "3 credits added to <first name>'s wallet"; DB shows one `topup_app` row + balance +3 | | |
+| WEB-TOP-03 | From WEB-TOP-02 receipt | Re-run verify for the same reference (refresh / retry the verify call) | Wallet is **not** double-credited (idempotency holds); balance unchanged | | |
+| WEB-TOP-04 | Backend up | `/topup` → enter an identifier that doesn't exist | Inline "No account found for that matric number or email"; nothing charged | | |
+| WEB-TOP-05 | Backend up | `/topup` → custom amount below ₦200 | Blocked with the "minimum ₦200 (one credit)" message before any Paystack call | | |
+| WEB-TOP-06 | On Paystack popup | Cancel the payment | "Payment cancelled" toast; no credit added; can retry | | |
+| WEB-CMP-01 | Backend up (migration applied) | `/complaint` → description only, no email/phone → submit | Blocked client-side: "Add a contact email or phone…" | | |
+| WEB-CMP-02 | Backend up | `/complaint` → description + email (or phone) → submit | Success screen; row appears in dashboard Complaints as "Guest — <email/phone>", no crash on null student | | |
+| WEB-DEL-01 | Backend up | `/delete-account` → email + confirm checkbox → submit | "Request received"; dashboard Complaints shows it with an "account_deletion" badge and the contact email | | |
+| WEB-DEL-02 | Any page | Check the footer on every page | "Delete account" link present and reaches `/delete-account` (Play reviewer reachability) | | |
+| WEB-LAND-01 | Site deployed | Load `/` | Live map + Top-up features show a green "Live" badge; NFC/arrivals/analytics show "Coming"; SDG section present; app card is a "Coming soon to Google Play" pre-launch state (no fake badge) | | |
+
+**Status:** all pending — not yet executed (needs the backend migration applied, Paystack test keys, and `yarn install` in `website/` for `@paystack/inline-js`). Backend `tsc`/`build`/`lint`, dashboard `build`, and website `lint` are clean; website `tsc -b` is clean except the expected missing-`@paystack/inline-js` module until installed.
+
+---
+
 ## Summary table (fill in once all sections are done — this table goes straight into Chapter 4)
 
 | Category | Total Cases | Passed | Failed | Notes |

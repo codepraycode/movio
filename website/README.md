@@ -27,7 +27,8 @@ This site does two jobs:
 | Routing     | React Router                            |
 | Backend/DB  | Supabase (Postgres + REST + RLS)        |
 | Hosting     | Vercel                                  |
-| Tooling     | ESLint + Prettier, pnpm                 |
+| Payments    | Paystack (`@paystack/inline-js`) — Transit Credit top-up |
+| Tooling     | ESLint + Prettier, yarn                 |
 
 ### Notes on choices (deviations from the original spec)
 
@@ -61,6 +62,10 @@ movio-survey/
 │   ├── lib/
 │   │   ├── supabase.ts        # Supabase client + helpers
 │   │   ├── survey.ts          # Declarative 18-question survey definition + types
+│   │   ├── track-api.ts       # Live-map reads from the MovIO backend (not Supabase)
+│   │   ├── backend.ts         # Shared POST helper + envelope handling for backend calls
+│   │   ├── wallet-api.ts      # Paystack top-up initiate/verify (no login)
+│   │   ├── complaints-api.ts  # Guest complaint / account-deletion submit (no login)
 │   │   └── utils.ts           # cn() class-name helper
 │   ├── components/
 │   │   ├── ui/                # Button, Card, Input, Label, Textarea, OptionGroup
@@ -68,14 +73,22 @@ movio-survey/
 │   │   │                      #   Progress, toast
 │   │   ├── Navbar.tsx
 │   │   ├── Footer.tsx
+│   │   ├── PageShell.tsx      # Shared header/footer shell for the interactive pages
+│   │   ├── LegalLayout.tsx    # Shared shell for Privacy / Terms
 │   │   ├── ProgressBar.tsx    # Per-section "Question x of N" indicator
 │   │   ├── SurveyHost.tsx     # Founder avatar + speech bubble (the "host")
 │   │   ├── SurveyQuestion.tsx # Renders one question from the config + reactions
 │   │   ├── Confetti.tsx       # Lightweight celebration on the thank-you screen
 │   │   └── WaitlistForm.tsx   # Reused on landing + survey exit/thank-you
 │   ├── pages/
-│   │   ├── Landing.tsx        # Route: /
-│   │   └── Survey.tsx         # Route: /survey
+│   │   ├── Landing.tsx        # Route: /       (hero, features, SDG, app pre-launch)
+│   │   ├── Survey.tsx         # Route: /survey
+│   │   ├── LiveMap.tsx        # Route: /live   (real backend GPS, no auth)
+│   │   ├── TopUp.tsx          # Route: /topup  (Paystack Transit Credit top-up)
+│   │   ├── Complaint.tsx      # Route: /complaint      (guest problem report)
+│   │   ├── DeleteAccount.tsx  # Route: /delete-account (Play Store deletion path)
+│   │   ├── Privacy.tsx        # Route: /privacy
+│   │   └── Terms.tsx          # Route: /terms
 │   ├── App.tsx                # Router + ToastProvider
 │   ├── main.tsx               # Entry point
 │   └── index.css              # Tailwind + brand theme
@@ -93,11 +106,11 @@ movio-survey/
 
 ## Getting started
 
-Prerequisites: **Node 20+** and **pnpm**.
+Prerequisites: **Node 20+** and **yarn** (standardised across the monorepo — backend/dashboard also use yarn).
 
 ```bash
 # 1. Install dependencies
-pnpm install
+yarn install
 
 # 2. Configure environment
 cp .env.example .env.local
@@ -108,7 +121,7 @@ cp .env.example .env.local
 #   Run supabase/schema.sql in the Supabase SQL editor (see docs/SUPABASE.md)
 
 # 4. Start the dev server
-pnpm dev
+yarn dev
 ```
 
 The app runs at <http://localhost:5173>.
@@ -117,11 +130,11 @@ The app runs at <http://localhost:5173>.
 
 | Command         | What it does                                   |
 | --------------- | ---------------------------------------------- |
-| `pnpm dev`      | Start the Vite dev server                      |
-| `pnpm build`    | Type-check (`tsc -b`) and build for production |
-| `pnpm preview`  | Preview the production build locally           |
-| `pnpm lint`     | Run ESLint                                      |
-| `pnpm format`   | Format the codebase with Prettier              |
+| `yarn dev`      | Start the Vite dev server                      |
+| `yarn build`    | Type-check (`tsc -b`) and build for production |
+| `yarn preview`  | Preview the production build locally           |
+| `yarn lint`     | Run ESLint                                      |
+| `yarn format`   | Format the codebase with Prettier              |
 
 ---
 
@@ -132,10 +145,19 @@ Defined in `.env.local` (never committed — it's gitignored):
 ```
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Live map + top-up + guest complaints read/write the MovIO backend (not Supabase)
+VITE_API_BASE_URL=http://localhost:4000            # Render backend URL in prod
+# VITE_SOCKET_URL=http://localhost:4000            # defaults to VITE_API_BASE_URL
+
+# Paystack PUBLIC key for the Transit Credit top-up page (pk_test_… in dev).
+# The SECRET key stays in the backend only, never here.
+VITE_PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxx
 ```
 
-The same two variables must be added in **Vercel → Project Settings →
+These variables must be added in **Vercel → Project Settings →
 Environment Variables** before deploying. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+Full descriptions of each are in [`.env.example`](.env.example).
 
 ---
 

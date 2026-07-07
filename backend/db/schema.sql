@@ -175,3 +175,44 @@ ALTER TABLE transit_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE boarding_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- MIGRATION (added 2026-07): guest complaints + Paystack app top-up
+-- ============================================================
+-- Idempotent (safe to re-run), matching the convention used in
+-- website/supabase/schema.sql. Run this against the live Supabase instance
+-- once — the new wallet/complaints queries below will 500 until it's applied.
+
+-- 1) Complaints: allow submission with no MovIO account (website, no login).
+ALTER TABLE complaints ALTER COLUMN student_id DROP NOT NULL;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'complaint';
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255);
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.constraint_column_usage
+        WHERE table_name = 'complaints' AND constraint_name = 'complaints_category_check'
+    ) THEN
+        ALTER TABLE complaints ADD CONSTRAINT complaints_category_check
+            CHECK (category IN ('complaint', 'account_deletion'));
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.constraint_column_usage
+        WHERE table_name = 'complaints' AND constraint_name = 'complaints_identity_check'
+    ) THEN
+        -- Every complaint must be traceable to someone: a logged-in student
+        -- (mobile app) OR a contact email/phone (guest, website).
+        ALTER TABLE complaints ADD CONSTRAINT complaints_identity_check
+            CHECK (student_id IS NOT NULL OR contact_email IS NOT NULL OR contact_phone IS NOT NULL);
+    END IF;
+END $$;
+
+-- 2) Paystack app top-up idempotency: `type = 'topup_app'` already fits the
+--    existing credit_transactions.type CHECK constraint - no column changes
+--    needed. This partial unique index stops a repeated verify call (page
+--    refresh, retry) from crediting the same payment twice.
+CREATE UNIQUE INDEX IF NOT EXISTS credit_transactions_topup_app_reference_idx
+    ON credit_transactions (reference) WHERE type = 'topup_app';

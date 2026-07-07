@@ -1,5 +1,5 @@
 import { query } from '../../config/db';
-import type { Complaint, ComplaintStatus } from '../../types';
+import type { Complaint, ComplaintCategory, ComplaintStatus } from '../../types';
 import type { ComplaintWithStudent } from './complaints.types';
 
 export async function insertComplaint(
@@ -16,11 +16,33 @@ export async function insertComplaint(
     return result.rows[0];
 }
 
+/**
+ * Website (no login) submission — student_id is null; traceability is the
+ * contact email/phone. Also used by the account-deletion page (category).
+ */
+export async function insertGuestComplaint(
+    description: string,
+    tripId: string | null,
+    contactEmail: string | null,
+    contactPhone: string | null,
+    category: ComplaintCategory
+): Promise<Complaint> {
+    const result = await query<Complaint>(
+        `INSERT INTO complaints (student_id, trip_id, description, contact_email, contact_phone, category)
+         VALUES (NULL, $1, $2, $3, $4, $5)
+         RETURNING *`,
+        [tripId, description, contactEmail, contactPhone, category]
+    );
+    return result.rows[0];
+}
+
 export async function findComplaints(status?: ComplaintStatus): Promise<ComplaintWithStudent[]> {
+    // LEFT JOIN, not INNER: guest complaints have student_id = NULL and would
+    // otherwise silently drop out of the admin list.
     const result = await query<ComplaintWithStudent>(
         `SELECT c.*, u.first_name, u.last_name
          FROM complaints c
-         JOIN users u ON u.user_id = c.student_id
+         LEFT JOIN users u ON u.user_id = c.student_id
          ${status ? 'WHERE c.status = $1' : ''}
          ORDER BY c.created_at DESC`,
         status ? [status] : []

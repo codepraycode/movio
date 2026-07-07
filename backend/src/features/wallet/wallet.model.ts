@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import { query, pool } from '../../config/db';
-import type { CreditTransaction, TransitWallet } from '../../types';
+import type { CreditTransaction, TransitWallet, User } from '../../types';
 
 export { pool };
 
@@ -60,6 +60,58 @@ export async function insertTopupTransaction(
          VALUES ($1, $2, 'topup_cash', $3)
          RETURNING transaction_id, created_at`,
         [walletId, amount, performedBy]
+    );
+    return result.rows[0];
+}
+
+// -- Website (no-login) Paystack top-up -------------------------------------
+
+export type IdentifiedUser = Pick<User, 'user_id' | 'first_name' | 'email'>;
+
+/**
+ * Look up an account by matric number OR email (whichever the visitor typed).
+ * Returns ONLY user_id / first_name / email — never balance, matric number, or
+ * anything else, since this is reachable with no auth (the first name is shown
+ * back purely to confirm "you're topping up the right person").
+ */
+export async function findUserByIdentifier(identifier: string): Promise<IdentifiedUser | undefined> {
+    const result = await query<IdentifiedUser>(
+        `SELECT user_id, first_name, email FROM users WHERE matric_no = $1 OR email = $1`,
+        [identifier]
+    );
+    return result.rows[0];
+}
+
+/** Confirmation-name lookup by user_id (used after Paystack verify echoes back the account). */
+export async function findUserBasicById(userId: string): Promise<Pick<User, 'user_id' | 'first_name'> | undefined> {
+    const result = await query<Pick<User, 'user_id' | 'first_name'>>(
+        `SELECT user_id, first_name FROM users WHERE user_id = $1`,
+        [userId]
+    );
+    return result.rows[0];
+}
+
+/** Idempotency guard (belt-and-braces alongside the DB partial unique index). */
+export async function findTopupByReference(reference: string): Promise<{ transaction_id: string } | undefined> {
+    const result = await query<{ transaction_id: string }>(
+        `SELECT transaction_id FROM credit_transactions WHERE type = 'topup_app' AND reference = $1`,
+        [reference]
+    );
+    return result.rows[0];
+}
+
+/** Same shape as insertTopupTransaction but type = 'topup_app', reference = the Paystack reference. */
+export async function insertAppTopupTransaction(
+    client: PoolClient,
+    walletId: string,
+    credits: number,
+    reference: string
+): Promise<NewTopupTransaction> {
+    const result = await client.query<NewTopupTransaction>(
+        `INSERT INTO credit_transactions (wallet_id, amount, type, reference)
+         VALUES ($1, $2, 'topup_app', $3)
+         RETURNING transaction_id, created_at`,
+        [walletId, credits, reference]
     );
     return result.rows[0];
 }

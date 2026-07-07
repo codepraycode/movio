@@ -18,3 +18,36 @@ export interface TopupCashResult {
     amount: number;
     created_at: Date;
 }
+
+/**
+ * Website Transit Credit top-up (no login). The visitor identifies the account
+ * by matric number OR email — whichever they type — and pays via Paystack.
+ */
+export class InitiateAppTopupDto {
+    @IsString()
+    @IsNotEmpty()
+    identifier!: string; // matric_no OR email, either accepted
+
+    @IsInt()
+    @IsPositive()
+    amount_naira!: number;
+}
+
+export class VerifyAppTopupDto {
+    @IsString()
+    @IsNotEmpty()
+    reference!: string;
+}
+
+export interface InitiateAppTopupResult {
+    access_code: string;
+    reference: string;
+    first_name: string; // shown back for confirmation — nothing else about the account is leaked
+    credits: number; // how many Transit Credits this amount buys
+}
+
+export interface VerifyAppTopupResult {
+    credits_added: number;
+    balance_credits: number;
+    first_name: string;
+}

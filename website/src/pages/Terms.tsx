@@ -1,6 +1,6 @@
 import { LegalLayout, type DocSection } from '@/components/LegalLayout'
 
-const LAST_UPDATED = '6 July 2026'
+const LAST_UPDATED = '7 July 2026'
 
 const sections: DocSection[] = [
     {
@@ -25,7 +25,21 @@ const sections: DocSection[] = [
         ],
     },
     {
-        heading: '3. Boarding and tracking',
+        heading: '3. Paying for top-ups on this website',
+        paragraphs: [
+            'Payments for Transit Credit on this website are processed by Paystack; ' +
+                'by paying, you also agree to Paystack’s own terms (paystack.com/terms). ' +
+                'Movio does not receive or store your card details.',
+            'Because topping up on this website does not require a login, you identify ' +
+                'the account by the matriculation number or email you enter. Please ' +
+                'check it carefully: if you enter the wrong identifier, the credits may ' +
+                'be added to the wrong account, and there is no automatic reversal. ' +
+                'This is the honest trade-off of the no-login convenience — contact us ' +
+                'if a genuine mistake happens and we’ll do what we reasonably can.',
+        ],
+    },
+    {
+        heading: '4. Boarding and tracking',
         paragraphs: [
             'Boarding uses a tap (NFC) against the shuttle reader. Live vehicle ' +
                 'positions shown on the map are provided for convenience and may be ' +
@@ -36,7 +50,7 @@ const sections: DocSection[] = [
         ],
     },
     {
-        heading: '4. Acceptable use',
+        heading: '5. Acceptable use',
         paragraphs: [
             'Do not attempt to disrupt the service, access other users’ accounts, or ' +
                 'misuse the boarding or wallet systems. Accounts found abusing the ' +
@@ -44,7 +58,7 @@ const sections: DocSection[] = [
         ],
     },
     {
-        heading: '5. Availability and changes',
+        heading: '6. Availability and changes',
         paragraphs: [
             'As a project under active development, features may change, pause, or be ' +
                 'removed, and the service may be unavailable at times. We may update ' +
@@ -53,7 +67,7 @@ const sections: DocSection[] = [
         ],
     },
     {
-        heading: '6. Liability',
+        heading: '7. Liability',
         paragraphs: [
             'Movio is provided without warranties. To the extent permitted by law, ' +
                 'the project team is not liable for losses arising from use of the ' +
@@ -61,7 +75,7 @@ const sections: DocSection[] = [
         ],
     },
     {
-        heading: '7. Contact',
+        heading: '8. Contact',
         paragraphs: [
             'Questions about these terms can be raised through the in-app “Report an ' +
                 'issue” flow or with the Movio project team.',

@@ -94,15 +94,22 @@ export interface LocationUpdateEvent {
 
 export type ComplaintStatus = 'open' | 'under_review' | 'resolved'
 
+export type ComplaintCategory = 'complaint' | 'account_deletion'
+
 export interface Complaint {
     complaint_id: string
-    student_id: string
+    // null for a guest (website, no login) submission — identify via contact fields.
+    student_id: string | null
     trip_id: string | null
     description: string
     status: ComplaintStatus
+    category: ComplaintCategory
+    contact_email: string | null
+    contact_phone: string | null
     created_at: string
-    first_name: string
-    last_name: string
+    // null for a guest submission.
+    first_name: string | null
+    last_name: string | null
 }
 
 export function getComplaints(status?: ComplaintStatus): Promise<Complaint[]> {

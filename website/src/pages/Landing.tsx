@@ -12,6 +12,15 @@ import {
     HeartHandshake,
     Sparkles,
     ArrowRight,
+    ArrowUpRight,
+    Wallet,
+    MessageSquareWarning,
+    Radio,
+    Leaf,
+    GraduationCap,
+    Building2,
+    Smartphone,
+    Bus,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
@@ -41,13 +50,86 @@ const problems = [
     },
 ]
 
+// Honest status per feature — "live" means you can use it *today* on this site;
+// "coming" means it's designed and in progress (hardware/app integration still
+// open per AGENTS.md). Don't oversell the coming ones — a defence panel checks.
 const features = [
-    { icon: Map, text: 'A live map showing exactly where every shuttle is, right now' },
-    { icon: CreditCard, text: 'Tap your student ID or phone to board — no cash, no change drama' },
-    { icon: Bell, text: 'A heads-up when a shuttle is a few minutes from your stop' },
+    {
+        icon: Map,
+        title: 'Live shuttle map',
+        text: 'See exactly where every campus shuttle is, right now — no more guessing at the stop.',
+        status: 'live' as const,
+        to: '/live',
+    },
+    {
+        icon: Wallet,
+        title: 'Transit Credit top-up',
+        text: 'Load credits to your wallet online — no cash, no change wahala. One credit, one boarding.',
+        status: 'live' as const,
+        to: '/topup',
+    },
+    {
+        icon: CreditCard,
+        title: 'Tap to board',
+        text: 'Tap your student ID or phone against the reader to board. Rolls out with the TapTrace device.',
+        status: 'coming' as const,
+    },
+    {
+        icon: Bell,
+        title: 'Arrival heads-up',
+        text: 'A nudge when a shuttle is a few minutes from your stop, so you leave at the right time.',
+        status: 'coming' as const,
+    },
     {
         icon: BarChart3,
-        text: 'Real ridership data so the school can run routes that actually work',
+        title: 'Ridership analytics',
+        text: 'Real demand data so the school runs routes that match how students actually move.',
+        status: 'coming' as const,
+    },
+]
+
+// The three actions a visitor can genuinely do on this site today.
+const liveActions = [
+    {
+        icon: Radio,
+        title: 'Watch it live',
+        body: 'Every active shuttle on the campus map, updating in real time.',
+        to: '/live',
+        cta: 'Open live map',
+    },
+    {
+        icon: Wallet,
+        title: 'Top up credit',
+        body: 'Add Transit Credit by matric number or email — no login.',
+        to: '/topup',
+        cta: 'Top up now',
+    },
+    {
+        icon: MessageSquareWarning,
+        title: 'Report a problem',
+        body: 'Late bus, wrong charge, packed shuttle? Tell us — a person reads it.',
+        to: '/complaint',
+        cta: 'Report it',
+    },
+]
+
+// Mirrors the actual argument in Chapters 1–3 / the conference paper — no
+// invented emissions numbers, just the real SDG framing.
+const sdgs = [
+    {
+        icon: GraduationCap,
+        tag: 'SDG 4 · Quality Education',
+        text: 'Unreliable transport makes students late to lectures and exams. Predictable, trackable shuttles protect learning time.',
+    },
+    {
+        icon: Building2,
+        tag: 'SDG 9 · Industry & Innovation',
+        text: 'Movio lays a digital infrastructure layer — GPS, NFC boarding, a data backbone — over an analogue campus service.',
+    },
+    {
+        icon: Leaf,
+        tag: 'SDG 11 · Sustainable Cities',
+        text: 'Demand-driven scheduling means fewer idle and under-filled trips — less wasted fuel per student actually moved.',
     },
 ]
 
@@ -203,33 +285,148 @@ export function Landing() {
             {/* ─────────────────── What Movio does ─────────────────── */}
             <section className="relative overflow-hidden bg-neutral-900 py-16">
                 <div className="bg-route absolute inset-0 opacity-[0.06]" />
-                <div className="relative mx-auto max-w-3xl px-4">
+                <div className="relative mx-auto max-w-4xl px-4">
                     <Reveal className="mb-10 text-center">
                         <LogoMark
                             animated
                             className="shadow-brand-500/20 mx-auto mb-5 h-12 w-12 rounded-2xl shadow-lg ring-1 ring-white/10"
                         />
                         <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                            Here’s what Movio will do
+                            What Movio does
                         </h2>
                         <p className="mx-auto mt-3 max-w-xl text-neutral-400">
-                            One app for students and admins — built around how FUTA actually moves.
+                            One system for students and admins — built around how FUTA actually
+                            moves. Some of it is already live; the rest ships as the hardware rolls
+                            out.
                         </p>
                     </Reveal>
-                    <ul className="space-y-3">
-                        {features.map(({ icon: Icon, text }, i) => (
-                            <Reveal key={text} delay={i * 100}>
-                                <li className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {features.map(({ icon: Icon, title, text, status, to }, i) => {
+                            const inner = (
+                                <div className="group flex h-full items-start gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 transition-colors hover:bg-white/10">
                                     <span className="bg-brand-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white">
                                         <Icon className="h-5 w-5" />
                                     </span>
-                                    <span className="text-sm text-neutral-100 sm:text-base">
-                                        {text}
-                                    </span>
-                                </li>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-white">{title}</h3>
+                                            {status === 'live' ? (
+                                                <span className="bg-brand-500/15 text-brand-300 ring-brand-500/30 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ring-1">
+                                                    <span className="bg-brand-400 h-1.5 w-1.5 animate-pulse rounded-full" />
+                                                    Live
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-neutral-400 uppercase ring-1 ring-white/10">
+                                                    Coming
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="mt-1.5 text-sm leading-relaxed text-neutral-300">
+                                            {text}
+                                        </p>
+                                        {to && (
+                                            <span className="text-brand-300 mt-2 inline-flex items-center gap-1 text-xs font-semibold group-hover:gap-1.5">
+                                                Try it
+                                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                            return (
+                                <Reveal key={title} delay={i * 90}>
+                                    {to ? (
+                                        <Link to={to} className="block h-full">
+                                            {inner}
+                                        </Link>
+                                    ) : (
+                                        inner
+                                    )}
+                                </Reveal>
+                            )
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {/* ─────────────────── SDG / sustainability ─────────────────── */}
+            <section className="bg-grid relative overflow-hidden py-16">
+                <div className="mx-auto max-w-4xl px-4">
+                    <Reveal className="mb-10 text-center">
+                        <span className="border-brand-200 text-brand-700 inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1 text-xs font-semibold">
+                            <Leaf className="h-3.5 w-3.5" />
+                            Built with the UN Global Goals in mind
+                        </span>
+                        <h2 className="mt-5 text-2xl font-bold text-neutral-900 sm:text-3xl">
+                            A campus shuttle that pulls its weight
+                        </h2>
+                        <p className="mx-auto mt-3 max-w-xl text-neutral-600">
+                            Movio isn’t only about convenience. It’s deliberately aligned with three
+                            of the UN Sustainable Development Goals — and this is a design
+                            commitment, not a slogan.
+                        </p>
+                    </Reveal>
+                    <div className="grid gap-5 sm:grid-cols-3">
+                        {sdgs.map(({ icon: Icon, tag, text }, i) => (
+                            <Reveal key={tag} delay={i * 120}>
+                                <Card className="hover:border-brand-200 h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                                    <CardContent className="space-y-3">
+                                        <span className="bg-brand-600 flex h-11 w-11 items-center justify-center rounded-2xl text-white">
+                                            <Icon className="h-5 w-5" />
+                                        </span>
+                                        <p className="text-brand-700 text-xs font-bold tracking-wide uppercase">
+                                            {tag}
+                                        </p>
+                                        <p className="text-sm leading-relaxed text-neutral-600">
+                                            {text}
+                                        </p>
+                                    </CardContent>
+                                </Card>
                             </Reveal>
                         ))}
-                    </ul>
+                    </div>
+                    <Reveal delay={200}>
+                        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-neutral-500">
+                            A precise fuel-saving figure will be published once real trip and
+                            fuel-use data is gathered from FUTA’s transport unit — we’d rather leave
+                            it blank than quote a number we can’t stand behind.
+                        </p>
+                    </Reveal>
+                </div>
+            </section>
+
+            {/* ─────────────────── Try it today strip ─────────────────── */}
+            <section className="mx-auto max-w-5xl px-4 py-12">
+                <Reveal className="mb-8 text-center">
+                    <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
+                        You can already do this today
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-xl text-neutral-600">
+                        No app install, no login. Three things this site does for real, right now.
+                    </p>
+                </Reveal>
+                <div className="grid gap-5 sm:grid-cols-3">
+                    {liveActions.map(({ icon: Icon, title, body, to, cta }, i) => (
+                        <Reveal key={title} delay={i * 110}>
+                            <Link to={to} className="group block h-full">
+                                <Card className="hover:border-brand-300 flex h-full flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                                    <CardContent className="flex h-full flex-col space-y-3">
+                                        <span className="bg-brand-50 text-brand-600 group-hover:bg-brand-600 flex h-12 w-12 items-center justify-center rounded-2xl transition-colors group-hover:text-white">
+                                            <Icon className="h-6 w-6" />
+                                        </span>
+                                        <h3 className="font-semibold text-neutral-900">{title}</h3>
+                                        <p className="flex-1 text-sm leading-relaxed text-neutral-600">
+                                            {body}
+                                        </p>
+                                        <span className="text-brand-700 inline-flex items-center gap-1 text-sm font-semibold">
+                                            {cta}
+                                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                        </span>
+                                    </CardContent>
+                                </Card>
+                            </Link>
+                        </Reveal>
+                    ))}
                 </div>
             </section>
 
@@ -268,19 +465,37 @@ export function Landing() {
                 </Reveal>
             </section>
 
-            {/* ───────────────────── Waitlist ───────────────────── */}
-            <section id="waitlist" className="mx-auto max-w-md scroll-mt-20 px-4 pb-20">
+            {/* ─────────────── Download the app (pre-launch) ─────────────── */}
+            <section id="waitlist" className="scroll-mt-20 px-4 pb-20">
                 <Reveal>
-                    <div className="mb-8 text-center">
-                        <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-                            Want Movio on your phone?
-                        </h2>
-                        <p className="mt-3 text-neutral-600">
-                            Join the waitlist and be the first to know the moment it launches at
-                            FUTA.
-                        </p>
+                    <div className="mx-auto grid max-w-5xl items-center gap-10 rounded-3xl border border-neutral-200 bg-white p-6 shadow-card sm:p-10 lg:grid-cols-2">
+                        <div>
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white">
+                                <Smartphone className="h-3.5 w-3.5" />
+                                Android · pre-launch
+                            </span>
+                            <h2 className="mt-5 text-2xl font-bold text-neutral-900 sm:text-3xl">
+                                Movio for your phone is on the way
+                            </h2>
+                            <p className="mt-3 max-w-md text-neutral-600">
+                                The student app — live map, tap-to-board and your Transit Credit
+                                wallet in one place — is being prepared for Google Play. Join the
+                                waitlist and you’ll be the first to know the moment it’s installable.
+                            </p>
+                            {/* Deliberately NOT a Play Store badge — showing one for an app that
+                                isn't published yet is itself a Play policy problem. Swap this for a
+                                real badge + link once it clears closed testing. */}
+                            <div className="mt-6 inline-flex items-center gap-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3">
+                                <Bus className="text-brand-600 h-5 w-5" />
+                                <span className="text-sm font-medium text-neutral-600">
+                                    Coming soon to Google Play
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            <WaitlistForm />
+                        </div>
                     </div>
-                    <WaitlistForm />
                 </Reveal>
             </section>
 

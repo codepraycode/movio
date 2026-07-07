@@ -1,6 +1,6 @@
 import { LegalLayout, type DocSection } from '@/components/LegalLayout'
 
-const LAST_UPDATED = '6 July 2026'
+const LAST_UPDATED = '7 July 2026'
 
 const sections: DocSection[] = [
     {
@@ -35,6 +35,29 @@ const sections: DocSection[] = [
             'If you allow location access, your device location is used to show ' +
                 'where you are on the live campus map. This is used on your device to ' +
                 'position the map and is not tracked in the background.',
+        ],
+    },
+    {
+        heading: 'Topping up on this website',
+        paragraphs: [
+            'If you top up Transit Credit on this website, we look up your account ' +
+                'by the matriculation number or email you type, process the payment ' +
+                'through Paystack, and add the credits to that account. Card details ' +
+                'are entered directly with Paystack and are never seen or stored by ' +
+                'Movio.',
+            'For your privacy, this website never displays your Transit Credit ' +
+                'balance or your trip history — the top-up page is deliberately ' +
+                'write-only. The only thing shown back is a first name, so you can ' +
+                'confirm you are crediting the right person.',
+        ],
+    },
+    {
+        heading: 'Reporting a problem or requesting deletion without logging in',
+        paragraphs: [
+            'If you submit a complaint or an account-deletion request from this ' +
+                'website without logging in, we store the contact details you provide ' +
+                '(email and/or phone) solely so we can respond to you and act on your ' +
+                'request. These are not used for anything else.',
         ],
     },
     {
@@ -76,7 +99,11 @@ const sections: DocSection[] = [
         paragraphs: [
             'You can decline location access and still use most of the app (the live ' +
                 'map simply won’t centre on you). You can report a problem or request ' +
-                'help with your data through the in-app “Report an issue” flow.',
+                'help with your data through the in-app “Report an issue” flow, or on ' +
+                'this website’s “Report a problem” page.',
+            'You can request permanent deletion of your Movio account and its data ' +
+                'at any time. Use the account-deletion page linked in the footer of ' +
+                'every page (movioapp.vercel.app/delete-account) — no login required.',
         ],
     },
 ]

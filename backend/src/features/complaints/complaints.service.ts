@@ -1,6 +1,6 @@
 import * as complaintsModel from './complaints.model';
 import { COMPLAINT_STATUSES } from '../../types';
-import type { Complaint, ComplaintStatus } from '../../types';
+import type { Complaint, ComplaintCategory, ComplaintStatus } from '../../types';
 import { BadRequestError, NotFoundError } from '../../shared/errors';
 import type { ComplaintWithStudent } from './complaints.types';
 
@@ -10,6 +10,22 @@ export async function createComplaint(
     tripId?: string
 ): Promise<Complaint> {
     return complaintsModel.insertComplaint(studentId, description, tripId ?? null);
+}
+
+export async function submitGuestComplaint(input: {
+    description: string;
+    tripId?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    category?: ComplaintCategory;
+}): Promise<Complaint> {
+    return complaintsModel.insertGuestComplaint(
+        input.description,
+        input.tripId ?? null,
+        input.contactEmail?.trim().toLowerCase() ?? null,
+        input.contactPhone?.trim() ?? null,
+        input.category ?? 'complaint'
+    );
 }
 
 export async function listComplaints(status?: string): Promise<ComplaintWithStudent[]> {

@@ -127,11 +127,22 @@ export interface BoardingEvent {
 export const COMPLAINT_STATUSES = ['open', 'under_review', 'resolved'] as const;
 export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 
+// 'complaint' = a normal issue report; 'account_deletion' = a data/account
+// deletion request routed through the same review pipeline (Google Play
+// requires a public deletion-request path — see website/DeleteAccount).
+export const COMPLAINT_CATEGORIES = ['complaint', 'account_deletion'] as const;
+export type ComplaintCategory = (typeof COMPLAINT_CATEGORIES)[number];
+
 export interface Complaint {
     complaint_id: string;
-    student_id: string;
+    // null for a guest submission (website, no login) — traceable instead via
+    // contact_email/contact_phone. Enforced by complaints_identity_check.
+    student_id: string | null;
     trip_id: string | null;
     description: string;
     status: ComplaintStatus;
+    category: ComplaintCategory;
+    contact_email: string | null;
+    contact_phone: string | null;
     created_at: Date;
 }

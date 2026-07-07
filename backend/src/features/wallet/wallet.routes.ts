@@ -1,8 +1,14 @@
 import { Router } from 'express';
-import { topupCash, getMyWallet, getMyTransactions } from './wallet.controller';
+import {
+    topupCash,
+    getMyWallet,
+    getMyTransactions,
+    initiateAppTopupController,
+    verifyAppTopupController,
+} from './wallet.controller';
 import { requireAuth, requireRole } from '../../shared/middlewares/auth.middleware';
 import { validateDto } from '../../shared/middlewares/validate.middleware';
-import { TopupCashDto } from './wallet.types';
+import { InitiateAppTopupDto, TopupCashDto, VerifyAppTopupDto } from './wallet.types';
 
 const router = Router();
 
@@ -13,5 +19,12 @@ router.get('/', requireAuth, getMyWallet);
 router.get('/transactions', requireAuth, getMyTransactions);
 
 router.post('/topup-cash', requireAuth, requireRole('transport_personnel'), validateDto(TopupCashDto), topupCash);
+
+// Website (no login) Paystack top-up — deposit-only by design. Looking up by
+// matric/email has no verification step; the worst case is a *misdirected*
+// top-up (a deposit into the wrong wallet), not any data exposure — the lookup
+// only ever returns a first name. See website plan §D and backend/README.md.
+router.post('/topup-app/initiate', validateDto(InitiateAppTopupDto), initiateAppTopupController);
+router.post('/topup-app/verify', validateDto(VerifyAppTopupDto), verifyAppTopupController);
 
 export default router;

@@ -53,10 +53,14 @@ This posts fake GPS updates every 5 seconds (matching the real TapTrace device's
 | GET | `/api/v1/tracking/active` | Student/Admin JWT | Active trips + latest GPS |
 | POST | `/api/v1/tracking/update` | Device (TODO: device auth) | GPS update from TapTrace/simulator |
 | POST | `/api/v1/boarding/authenticate` | Device (TODO: device auth) | NFC boarding + credit deduction |
+| POST | `/api/v1/complaints/public` | No | Guest complaint / account-deletion request (website) |
+| POST | `/api/v1/wallet/topup-app/initiate` | No | Website Transit Credit top-up — look up by matric/email, start Paystack |
+| POST | `/api/v1/wallet/topup-app/verify` | No | Website top-up — verify Paystack payment server-side, credit once |
 
 More endpoints (trips start/end, admin reports, complaints) are in the milestone plan under `BE-*` — not built yet, add them the same way: controller → route → wire into `app.js`.
 
 ## Known TODOs (say these out loud in Chapter 4, don't hide them)
 - Boarding/tracking endpoints are currently open — need per-device API key auth before any real deployment (noted inline in `boardingController.js`)
+- Website top-up looks up the target account by matric/email with **no verification step, by design** — this is a deposit-only action (a data-write, not a data-read), so the risk is a *misdirected* top-up into the wrong wallet, not any data exposure (the lookup only ever returns a first name for confirmation). Say this out loud in Chapter 4.
 - No automated tests yet
 - No rate limiting

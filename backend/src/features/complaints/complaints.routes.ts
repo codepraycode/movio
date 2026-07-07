@@ -1,12 +1,19 @@
 import { Router } from 'express';
-import { createComplaint, listComplaints, updateComplaintStatus } from './complaints.controller';
+import {
+    createComplaint,
+    createGuestComplaint,
+    listComplaints,
+    updateComplaintStatus,
+} from './complaints.controller';
 import { requireAuth, requireRole } from '../../shared/middlewares/auth.middleware';
 import { validateDto } from '../../shared/middlewares/validate.middleware';
-import { CreateComplaintDto, UpdateComplaintStatusDto } from './complaints.types';
+import { CreateComplaintDto, CreateGuestComplaintDto, UpdateComplaintStatusDto } from './complaints.types';
 
 // Student-facing router, mounted at /api/v1/complaints in app.ts
 const router = Router();
 router.post('/', requireAuth, requireRole('student'), validateDto(CreateComplaintDto), createComplaint);
+// Public (no login) — website guest complaints + account-deletion requests.
+router.post('/public', validateDto(CreateGuestComplaintDto), createGuestComplaint);
 export default router;
 
 // Admin-facing router, mounted at /api/v1/admin/complaints in app.ts.

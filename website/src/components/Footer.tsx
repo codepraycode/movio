@@ -7,8 +7,10 @@ import {
     Copy,
     GraduationCap,
     Link2,
+    MessageSquareWarning,
     Radio,
     Send,
+    Wallet,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { useToast } from '@/components/ui/toast'
@@ -120,6 +122,12 @@ export function Footer() {
                         <FooterLink to="/live" icon={Radio}>
                             Live campus map
                         </FooterLink>
+                        <FooterLink to="/topup" icon={Wallet}>
+                            Top up Transit Credit
+                        </FooterLink>
+                        <FooterLink to="/complaint" icon={MessageSquareWarning}>
+                            Report a problem
+                        </FooterLink>
                         <FooterLink to="/survey" icon={ClipboardList}>
                             Take the survey
                         </FooterLink>
@@ -164,12 +172,18 @@ export function Footer() {
                     <p className="text-center sm:text-left">
                         © {year} Movio · A Software Engineering final year project · FUTA, Akure
                     </p>
-                    <nav className="flex items-center gap-4">
+                    <nav className="flex flex-wrap items-center justify-center gap-4">
                         <Link to="/privacy" className="hover:text-brand-300 transition-colors">
                             Privacy
                         </Link>
                         <Link to="/terms" className="hover:text-brand-300 transition-colors">
                             Terms
+                        </Link>
+                        <Link
+                            to="/delete-account"
+                            className="hover:text-brand-300 transition-colors"
+                        >
+                            Delete account
                         </Link>
                         <a
                             href="https://github.com/codepraycode"
