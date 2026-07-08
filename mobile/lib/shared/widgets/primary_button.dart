@@ -1,0 +1,49 @@
+import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
+
+/// Primary call-to-action. Inherits shape/colour from the app's
+/// ElevatedButtonTheme; adds the one thing a plain button lacks — an inline
+/// [loading] state that shows a spinner and disables the button so a slow
+/// network can't be double-submitted.
+class PrimaryButton extends StatelessWidget {
+  const PrimaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      // Disabled while loading (or when no handler is provided).
+      onPressed: loading ? null : onPressed,
+      child: loading
+          ? const SizedBox(
+              height: 22,
+              width: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                valueColor: AlwaysStoppedAnimation(AppColors.onBrand),
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Text(label),
+              ],
+            ),
+    );
+  }
+}

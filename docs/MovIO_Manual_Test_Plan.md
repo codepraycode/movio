@@ -89,6 +89,20 @@ Purpose: verify the system against the functional requirements (Ch.3 §3.3.4) an
 | MOB-T06 | Logged in | Submit a complaint | Appears in admin dashboard's complaint list | | |
 | MOB-T07 | Poor/no network | Use the app | Fails gracefully with a clear message, doesn't crash — note honestly in Ch.4 if offline mode isn't fully built, this is acceptable to scope out but must not be silently broken | | |
 
+### 6a. Login / Register screens (`PSD-101` / MOB-2)
+
+Contract rows were verified live via curl against the real backend + Supabase (register→login→409→401→422, and the created `users` + `transit_wallets` rows confirmed in Supabase then cleaned up). On-device UI/navigation rows are pending a run on the physical phone with the backend on the LAN IP.
+
+| ID | Precondition | Steps | Expected Result | Actual | Pass/Fail |
+|---|---|---|---|---|---|
+| MOB-2-01 | Backend on LAN IP, app on device | Register a new student (matric, name, email, password) | 201; app navigates to home; a `users` row **and** a `transit_wallets` row are created | Contract verified live (user+wallet row confirmed in Supabase, then removed); on-device nav pending | Pass (contract) |
+| MOB-2-02 | Registered | Log out, log back in with the same email/password | Login succeeds, JWT stored, lands on home | Login envelope + token verified live via curl; on-device pending | Pass (contract) |
+| MOB-2-03 | Logged in | Kill the app and relaunch | Still authenticated (JWT persisted in secure storage), goes straight to home — no re-login | Pending device run | |
+| MOB-2-04 | — | Register with an already-used email/matric | Clean 409 "A user with this email or matric number already exists" surfaced as a snackbar | 409 path verified live via curl | Pass (contract) |
+| MOB-2-05 | — | Login with a wrong password | Clean 401 "Invalid email or password" snackbar, no crash | 401 verified live via curl | Pass (contract) |
+| MOB-2-06 | — | Submit register with empty name / bad email / short (<6) password | Inline field errors shown before any request is sent | Client validators mirror backend DTO; backend 422 envelope parsing verified live | Pass (contract) |
+| MOB-2-07 | Backend down / wrong IP | Attempt login | Friendly "Can't reach the MovIO server…" message, no crash | Network-failure path coded in ApiClient; on-device pending | |
+
 ## 7. Non-Functional / Performance (Ch.3 §3.3.5 targets)
 
 | ID | Target (from NFRs) | Measurement method | Actual | Pass/Fail |

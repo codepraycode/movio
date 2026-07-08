@@ -2,18 +2,27 @@
     <!-- Internet: backend API + WebSocket + map tiles -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- NFC: for TapTrace boarding authentication -->
+    <!-- NFC: for TapTrace boarding authentication.
+         required="false" on purpose: only ~39% of FUTA students have NFC phones
+         (104-student survey), the physical MIFARE card is the primary credential,
+         and login/wallet/tracking work fine without NFC. required="true" would
+         block install on the majority of target devices. -->
     <uses-permission android:name="android.permission.NFC" />
-    <uses-feature android:name="android.hardware.nfc" android:required="true" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
     <!-- Location: GPS for live map (fine = GPS chip, coarse = network fallback) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- usesCleartextTraffic: DEV ONLY. The backend runs over http:// on the
+         laptop's LAN IP during development, and Android 9+ blocks cleartext by
+         default. Production (Render) is HTTPS, where this should be removed or
+         scoped via a network-security-config. -->
     <application
-        android:label="mobile"
+        android:label="MovIO"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
